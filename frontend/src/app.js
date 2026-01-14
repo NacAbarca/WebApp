@@ -11,6 +11,9 @@ createApp({
     const errorMsg = ref("");
     const loading = ref(false);
 
+    // ✅ TOAST (nuevo)
+    const toastMsg = ref("");
+
     // ===== AUTH ACTIONS =====
     async function loadMe() {
       try {
@@ -22,6 +25,7 @@ createApp({
 
     async function login() {
       errorMsg.value = "";
+      toastMsg.value = "";
       loading.value = true;
 
       try {
@@ -32,10 +36,9 @@ createApp({
 
         user.value = data.user;
 
-        // ✅ CLAVE: cargar usuarios al iniciar sesión
+        // cargar datos post-login
         await loadUsers();
         await loadAppointments();
-
       } catch (e) {
         errorMsg.value = e.message;
       } finally {
@@ -54,6 +57,7 @@ createApp({
         users.value = data.users;
       } catch (e) {
         errorMsg.value = e.message;
+        users.value = [];
       }
     }
 
@@ -97,6 +101,7 @@ createApp({
 
     async function logout() {
       errorMsg.value = "";
+      toastMsg.value = "";
       try {
         await api("path=auth&action=logout", { method: "POST", body: {} });
       } finally {
@@ -131,6 +136,11 @@ createApp({
       apptError.value = "";
       toastMsg.value = "";
 
+      // ✅ UX: bloquear antes de pegarle al backend
+      if (!user.value) {
+        toastMsg.value = "Debes iniciar sesión";
+        return;
+      }
       if (user.value.role !== "admin") {
         toastMsg.value = "No tienes permiso para crear citas para otros usuarios";
         return;
@@ -146,6 +156,9 @@ createApp({
           method: "POST",
           body: apptForm.value
         });
+
+        // limpiar formulario
+        apptForm.value = { user_id: "", start_at: "", end_at: "", notes: "" };
 
         await loadAppointments();
       } catch (e) {
@@ -179,7 +192,6 @@ createApp({
       const modalEl = document.getElementById("userModal");
       if (modalEl && window.bootstrap) {
         modal = new window.bootstrap.Modal(modalEl);
-
         modalEl.addEventListener("hidden.bs.modal", () => {
           if (document.activeElement) document.activeElement.blur();
         });
@@ -187,16 +199,14 @@ createApp({
 
       if (user.value) await loadUsers();
       if (user.value) await loadAppointments();
-
     });
-
-
 
     return {
       email, password, user, errorMsg, loading, login, logout,
+      toastMsg,
+
       users, form, loadUsers, openCreate, openEdit, saveUser, deactivate,
 
-      // citas
       appointments, apptForm, apptError,
       loadAppointments, createAppointment, setAppointmentStatus, cancelAppointment
     };
@@ -204,13 +214,7 @@ createApp({
 
   template: `
   <div class="container py-5" style="max-width: 980px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-
-    <div v-if="toastMsg" class="alert alert-warning alert-dismissible fade show" role="alert">
-      {{ toastMsg }}
-      <button type="button" class="btn-close" @click="toastMsg = ''"></button>
-    </div>
-
+    <div class="d-flex justify-content-between align-items-center mb-3">
       <div>
         <h1 class="h3 mb-1">WebApp Citas</h1>
         <div class="text-muted">Admin panel (login + usuarios)</div>
@@ -218,6 +222,12 @@ createApp({
       <button v-if="user" class="btn btn-outline-danger" @click="logout">
         Cerrar sesión
       </button>
+    </div>
+
+    <!-- ✅ TOAST (afuera del d-flex, layout limpio) -->
+    <div v-if="toastMsg" class="alert alert-warning alert-dismissible fade show" role="alert">
+      {{ toastMsg }}
+      <button type="button" class="btn-close" @click="toastMsg = ''"></button>
     </div>
 
     <!-- ================= LOGIN ================= -->
@@ -396,7 +406,11 @@ createApp({
               <input class="form-control" v-model="apptForm.notes" />
             </div>
             <div class="col-md-1 d-grid">
-              <button class="btn btn-success" @click="createAppointment">
+              <button
+                class="btn btn-success"
+                :disabled="user.role !== 'admin'"
+                @click="createAppointment"
+              >
                 Crear
               </button>
             </div>
@@ -454,7 +468,7 @@ createApp({
         </div>
       </div>
 
-    </div> <!-- cierre v-else -->
-  </div>   <!-- cierre container -->
+    </div>
+  </div>
 `
 }).mount("#app");

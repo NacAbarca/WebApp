@@ -110,7 +110,7 @@ createApp({
     const apptError = ref("");
 
     const apptForm = ref({
-      user_id: 1,
+      user_id: "",
       start_at: "",
       end_at: "",
       notes: ""
@@ -129,11 +129,24 @@ createApp({
 
     async function createAppointment() {
       apptError.value = "";
+      toastMsg.value = "";
+
+      if (user.value.role !== "admin") {
+        toastMsg.value = "No tienes permiso para crear citas para otros usuarios";
+        return;
+      }
+
       try {
+        if (!apptForm.value.user_id) throw new Error("Selecciona un usuario");
         if (!apptForm.value.start_at || !apptForm.value.end_at) {
-          throw new Error("Completa start_at y end_at");
+          throw new Error("Completa start y end");
         }
-        await api("path=appointments", { method: "POST", body: apptForm.value });
+
+        await api("path=appointments", {
+          method: "POST",
+          body: apptForm.value
+        });
+
         await loadAppointments();
       } catch (e) {
         apptError.value = e.message;
@@ -192,6 +205,12 @@ createApp({
   template: `
   <div class="container py-5" style="max-width: 980px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div v-if="toastMsg" class="alert alert-warning alert-dismissible fade show" role="alert">
+      {{ toastMsg }}
+      <button type="button" class="btn-close" @click="toastMsg = ''"></button>
+    </div>
+
       <div>
         <h1 class="h3 mb-1">WebApp Citas</h1>
         <div class="text-muted">Admin panel (login + usuarios)</div>
@@ -356,8 +375,13 @@ createApp({
         <div class="card-body">
           <div class="row g-2 align-items-end">
             <div class="col-md-2">
-              <label class="form-label">User ID</label>
-              <input class="form-control" v-model="apptForm.user_id" type="number" min="1" />
+              <label class="form-label">Usuario</label>
+              <select class="form-select" v-model.number="apptForm.user_id">
+                <option disabled value="">Selecciona usuario</option>
+                <option v-for="u in users" :key="u.id" :value="u.id">
+                  {{ u.name }} ({{ u.email }})
+                </option>
+              </select>
             </div>
             <div class="col-md-3">
               <label class="form-label">Start</label>

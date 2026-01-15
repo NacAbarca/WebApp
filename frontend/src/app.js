@@ -285,7 +285,7 @@ createApp({
     };
   },
 
-  template: `
+    template: `
   <div class="container py-5" style="max-width: 980px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
@@ -321,20 +321,32 @@ createApp({
       <div class="alert alert-success d-flex justify-content-between align-items-center">
         <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
 
-        <button
-          class="btn btn-sm btn-success"
-          :disabled="!canManageUsers"
-          @click="openCreate"
-          :title="!canManageUsers ? 'Solo admin puede gestionar usuarios' : ''"
+        <!-- wrapper para tooltip aunque esté disabled -->
+        <span
+          class="d-inline-block"
+          tabindex="0"
+          data-bs-toggle="tooltip"
+          :data-bs-title="canManageUsers ? 'Crear usuario' : 'Solo admin puede gestionar usuarios'"
         >
-          + Nuevo usuario
-        </button>
+          <button
+            class="btn btn-sm btn-success"
+            :disabled="!canManageUsers"
+            @click="openCreate"
+          >
+            + Nuevo usuario
+          </button>
+        </span>
       </div>
 
       <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
 
-      <!-- Tabla usuarios -->
-      <div class="card shadow-sm mb-4">
+      <!-- ✅ Usuarios: SOLO admin -->
+      <div v-if="canManageUsers" class="card shadow-sm mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="fw-semibold">Usuarios</div>
+          <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>
+        </div>
+
         <div class="table-responsive">
           <table class="table table-striped mb-0">
             <thead>
@@ -354,19 +366,19 @@ createApp({
                   </span>
                 </td>
                 <td class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">Editar</button>
-                  <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deactivate(u)">Desactivar</button>
+                  <button class="btn btn-sm btn-outline-primary" @click="openEdit(u)">Editar</button>
+                  <button class="btn btn-sm btn-outline-danger" @click="deactivate(u)">Desactivar</button>
                 </td>
               </tr>
               <tr v-if="users.length===0">
-                <td colspan="6" class="text-muted p-4">Sin usuarios (o sin permiso)</td>
+                <td colspan="6" class="text-muted p-4">Sin usuarios</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Citas -->
+      <!-- ✅ Citas -->
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h5 mb-0">Citas</h2>
         <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
@@ -403,7 +415,6 @@ createApp({
             </div>
 
             <div class="col-md-1 d-grid">
-              <!-- Tooltip: botón disabled NO recibe hover, por eso usamos wrapper -->
               <span
                 class="d-inline-block"
                 tabindex="0"
@@ -452,7 +463,7 @@ createApp({
         </div>
       </div>
 
-      <!-- Modal Users -->
+      <!-- ✅ Modal Users (NECESARIO para que el botón funcione) -->
       <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
@@ -497,7 +508,7 @@ createApp({
 
             <div class="modal-footer">
               <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button class="btn btn-primary" @click="saveUser" :disabled="!canManageUsers">Guardar</button>
+              <button class="btn btn-primary" @click="saveUser">Guardar</button>
             </div>
           </div>
         </div>

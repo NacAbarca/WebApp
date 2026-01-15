@@ -341,6 +341,7 @@ createApp({
       <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
 
       <!-- ✅ Usuarios: SOLO admin -->
+
       <div class="card shadow-sm mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <div class="fw-semibold">Usuarios</div>
@@ -366,9 +367,29 @@ createApp({
                   </span>
                 </td>
                 <td class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-primary" @click="openEdit(u)">Editar</button>
-                  <button class="btn btn-sm btn-outline-danger" @click="deactivate(u)">Desactivar</button>
+                  <span
+                    class="d-inline-block"
+                    tabindex="0"
+                    data-bs-toggle="tooltip"
+                    :data-bs-title="canManageUsers ? 'Editar' : 'No se permite: autorizado por rol'"
+                  >
+                    <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
+                      Editar
+                    </button>
+                  </span>
+
+                  <span
+                    class="d-inline-block"
+                    tabindex="0"
+                    data-bs-toggle="tooltip"
+                    :data-bs-title="canManageUsers ? 'Desactivar' : 'No se permite: autorizado por rol'"
+                  >
+                    <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deactivate(u)">
+                      Desactivar
+                    </button>
+                  </span>
                 </td>
+
               </tr>
               <tr v-if="users.length===0">
                 <td colspan="6" class="text-muted p-4">Sin usuarios</td>

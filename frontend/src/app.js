@@ -341,7 +341,7 @@ createApp({
       <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
 
       <!-- ✅ Usuarios: SOLO admin -->
-      <div v-if="canManageUsers" class="card shadow-sm mb-4">
+      <div class="card shadow-sm mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <div class="fw-semibold">Usuarios</div>
           <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>

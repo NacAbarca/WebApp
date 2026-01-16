@@ -11,3 +11,12 @@ function require_role(array $roles): void {
   $role = $_SESSION['user']['role'] ?? null;
   if (!in_array($role, $roles, true)) json_error('Prohibido', 403);
 }
+
+// Helpers de conveniencia (evitan errores "undefined function require_admin")
+function require_admin(): void {
+  require_role(['admin']);
+}
+
+function require_staff(): void {
+  require_role(['staff', 'admin']);
+}

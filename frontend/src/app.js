@@ -105,11 +105,25 @@ createApp({
       } catch (e) {
         errorMsg.value = e.message;
       }
-    }
+    }    
 
     async function deactivate(u) {
       if (!canManageUsers.value) return;
       if (!confirm(`Desactivar usuario ${u.email}?`)) return;
+
+      try {
+        await api({ path: "users" }, { method: "PATCH", body: { id: u.id, status: "inactive" } });
+        await loadUsersSafe();
+      } catch (e) {
+        errorMsg.value = e.message;
+      }
+    }
+
+    async function deleteUser(u) {
+      if (!canManageUsers.value) return;
+
+      const ok = confirm(`Eliminar PERMANENTEMENTE al usuario ${u.email}? Esta acción no se puede deshacer.`);
+      if (!ok) return;
 
       try {
         await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
@@ -272,7 +286,7 @@ createApp({
 
       // users
       users, form, canManageUsers,
-      openCreate, openEdit, saveUser, deactivate,
+      openCreate, openEdit, saveUser, deactivate, deleteUser,
 
       // appts
       appointments, apptError, apptForm,
@@ -366,26 +380,29 @@ createApp({
                     {{ u.status }}
                   </span>
                 </td>
-                <td class="d-flex gap-2">
-                  <span
-                    class="d-inline-block"
-                    tabindex="0"
-                    data-bs-toggle="tooltip"
-                    :data-bs-title="canManageUsers ? 'Editar' : 'No se permite: autorizado por rol'"
-                  >
-                    <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
-                      Editar
-                    </button>
-                  </span>
 
+                <td class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
+                    Editar
+                  </button>
+
+                  <button class="btn btn-sm btn-outline-warning" :disabled="!canManageUsers" @click="deactivate(u)">
+                    Desactivar
+                  </button>
+
+                  <!-- Tooltip: botón disabled no recibe hover, wrapper sí -->
                   <span
                     class="d-inline-block"
                     tabindex="0"
                     data-bs-toggle="tooltip"
-                    :data-bs-title="canManageUsers ? 'Desactivar' : 'No se permite: autorizado por rol'"
+                    :data-bs-title="canManageUsers ? 'Eliminar usuario' : 'No autorizado por rol'"
                   >
-                    <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deactivate(u)">
-                      Desactivar
+                    <button
+                      class="btn btn-sm btn-outline-danger"
+                      :disabled="!canManageUsers"
+                      @click="deleteUser(u)"
+                    >
+                      Eliminar
                     </button>
                   </span>
                 </td>

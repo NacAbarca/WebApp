@@ -90,10 +90,14 @@ if ($method === 'DELETE') {
   $id = (int)($_GET['id'] ?? 0);
   if ($id <= 0) json_error('id requerido', 422);
 
+  $meId = (int)($_SESSION['user']['id'] ?? 0);
+  if ($meId === $id) json_error('No puedes desactivar tu propio usuario', 400);
+
   $upd = $pdo->prepare("UPDATE users SET status='inactive' WHERE id=?");
   $upd->execute([$id]);
 
-  json_ok(['deleted' => true, 'id' => $id]);
+  json_ok(['deleted' => true]);
 }
+
 
 json_error('Method Not Allowed', null, 405);

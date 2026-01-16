@@ -107,31 +107,34 @@ createApp({
       }
     }    
 
-    async function deactivate(u) {
-      if (!canManageUsers.value) return;
-      const ok = confirm(`Desactivar (soft) al usuario ${u.email}?`);
-      if (!ok) return;
+   async function deactivate(u) {
+    if (!canManageUsers.value) return;
+    if (!confirm(`Desactivar usuario ${u.email}?`)) return;
 
-      try {
-        await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
-        await loadUsersSafe();
-      } catch (e) {
-        errorMsg.value = e.message;
-      }
+    try {
+      await api(
+        { path: "users", id: String(u.id) },
+        { method: "PUT", body: { status: "inactive" } }
+      );
+      await loadUsersSafe();
+    } catch (e) {
+      errorMsg.value = e.message;
     }
+  }
 
-    async function deleteUser(u) {
-      if (!canManageUsers.value) return;
-      const ok = confirm(`Eliminar (soft) al usuario ${u.email}?`);
-      if (!ok) return;
+  async function deleteUser(u) {
+    if (!canManageUsers.value) return;
 
-      try {
-        await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
-        await loadUsersSafe();
-      } catch (e) {
-        errorMsg.value = e.message;
-      }
+    const ok = confirm(`Eliminar (soft) a ${u.email}? Quedará INACTIVO.`);
+    if (!ok) return;
+
+    try {
+      await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
+      await loadUsersSafe();
+    } catch (e) {
+      errorMsg.value = e.message;
     }
+  }
 
     // -------- Appointments
     const appointments = ref([]);
@@ -286,8 +289,7 @@ createApp({
 
       // users
       users, form, canManageUsers,
-      openCreate, openEdit, saveUser, 
-      deactivate, deleteUser,
+      openCreate, openEdit, saveUser, deactivate, deleteUser,
 
       // appts
       appointments, apptError, apptForm,
@@ -401,6 +403,7 @@ createApp({
                       Eliminar
                     </button>
                   </span>
+
                 </td>
 
               </tr>

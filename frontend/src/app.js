@@ -112,7 +112,10 @@ createApp({
       if (!confirm(`Desactivar usuario ${u.email}?`)) return;
 
       try {
-        await api({ path: "users" }, { method: "PATCH", body: { id: u.id, status: "inactive" } });
+        await api(
+          { path: "users", id: String(u.id) },
+          { method: "PUT", body: { status: "inactive" } }
+        );
         await loadUsersSafe();
       } catch (e) {
         errorMsg.value = e.message;
@@ -122,16 +125,21 @@ createApp({
     async function deleteUser(u) {
       if (!canManageUsers.value) return;
 
-      const ok = confirm(`Eliminar PERMANENTEMENTE al usuario ${u.email}? Esta acción no se puede deshacer.`);
+      const ok = confirm(
+        `Eliminar usuario ${u.email} (soft delete = inactive)?\n` +
+        `Recomendado para no romper citas/relaciones en BD.`
+      );
       if (!ok) return;
 
       try {
+        // OJO: tu backend DELETE hace status='inactive' (soft delete)
         await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
         await loadUsersSafe();
       } catch (e) {
         errorMsg.value = e.message;
       }
     }
+
 
     // -------- Appointments
     const appointments = ref([]);
@@ -286,7 +294,8 @@ createApp({
 
       // users
       users, form, canManageUsers,
-      openCreate, openEdit, saveUser, deactivate, deleteUser,
+      openCreate, openEdit, saveUser, 
+      deactivate, deleteUser,
 
       // appts
       appointments, apptError, apptForm,
@@ -299,7 +308,7 @@ createApp({
     };
   },
 
-    template: `
+  template: `
   <div class="container py-5" style="max-width: 980px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
@@ -390,18 +399,13 @@ createApp({
                     Desactivar
                   </button>
 
-                  <!-- Tooltip: botón disabled no recibe hover, wrapper sí -->
                   <span
                     class="d-inline-block"
                     tabindex="0"
                     data-bs-toggle="tooltip"
-                    :data-bs-title="canManageUsers ? 'Eliminar usuario' : 'No autorizado por rol'"
+                    :data-bs-title="canManageUsers ? 'Eliminar (soft)' : 'No autorizado por rol'"
                   >
-                    <button
-                      class="btn btn-sm btn-outline-danger"
-                      :disabled="!canManageUsers"
-                      @click="deleteUser(u)"
-                    >
+                    <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deleteUser(u)">
                       Eliminar
                     </button>
                   </span>

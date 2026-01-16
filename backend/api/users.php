@@ -90,22 +90,16 @@ if ($method === 'PUT') {
 
 // DELETE /api.php?path=users&id=123  (solo admin)
 if ($method === 'DELETE') {
-  require_admin();
+  $id = (int)($_GET['id'] ?? 0);
+  if ($id <= 0) json_error('id requerido', 422);
 
-  $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-  if ($id <= 0) json_error('ID inválido', ['id' => $id], 400);
+  // Soft delete: lo desactivamos
+  $upd = $pdo->prepare("UPDATE users SET status='inactive' WHERE id=?");
+  $upd->execute([$id]);
 
-  $meId = (int)($_SESSION['user']['id'] ?? 0);
-  if ($meId === $id) json_error('No puedes eliminar tu propio usuario', ['id' => $id], 400);
-
-  $pdo = db();
-  $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-  $stmt->execute([$id]);
-
-  json_ok(['deleted' => true, 'id' => $id]);
+  json_ok(['deleted' => true]);
 }
 
 
 
-
-json_error('Method Not Allowed', 405);
+json_error('Method Not Allowed', null, 405);

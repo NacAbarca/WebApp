@@ -11,7 +11,6 @@ $pdo = db();
 require_role(['admin']);
 
 if ($method === 'GET') {
-  // Lista simple (sin paginación por ahora)
   $q = $pdo->query("SELECT id, name, email, role, status, created_at FROM users ORDER BY id DESC");
   json_ok(['users' => $q->fetchAll()]);
 }
@@ -32,7 +31,6 @@ if ($method === 'POST') {
   if (!in_array($role, ['admin','staff','user'], true)) json_error('role inválido', 422);
   if (!in_array($status, ['active','inactive'], true)) json_error('status inválido', 422);
 
-  // email único
   $chk = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
   $chk->execute([$email]);
   if ($chk->fetch()) json_error('Email ya existe', 409);
@@ -55,7 +53,6 @@ if ($method === 'PUT') {
   $status = $body['status'] ?? null;
   $password = isset($body['password']) ? (string)$body['password'] : null;
 
-  // trae usuario
   $stmt = $pdo->prepare("SELECT id, email FROM users WHERE id=? LIMIT 1");
   $stmt->execute([$id]);
   $u = $stmt->fetch();
@@ -88,18 +85,15 @@ if ($method === 'PUT') {
   json_ok(['updated' => true]);
 }
 
-// DELETE /api.php?path=users&id=123  (solo admin)
+// ✅ DELETE = soft delete (NO borrar físico)
 if ($method === 'DELETE') {
   $id = (int)($_GET['id'] ?? 0);
   if ($id <= 0) json_error('id requerido', 422);
 
-  // Soft delete: lo desactivamos
   $upd = $pdo->prepare("UPDATE users SET status='inactive' WHERE id=?");
   $upd->execute([$id]);
 
-  json_ok(['deleted' => true]);
+  json_ok(['deleted' => true, 'id' => $id]);
 }
-
-
 
 json_error('Method Not Allowed', null, 405);

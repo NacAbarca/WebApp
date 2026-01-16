@@ -109,13 +109,11 @@ createApp({
 
     async function deactivate(u) {
       if (!canManageUsers.value) return;
-      if (!confirm(`Desactivar usuario ${u.email}?`)) return;
+      const ok = confirm(`Desactivar (soft) al usuario ${u.email}?`);
+      if (!ok) return;
 
       try {
-        await api(
-          { path: "users", id: String(u.id) },
-          { method: "PUT", body: { status: "inactive" } }
-        );
+        await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
         await loadUsersSafe();
       } catch (e) {
         errorMsg.value = e.message;
@@ -124,22 +122,16 @@ createApp({
 
     async function deleteUser(u) {
       if (!canManageUsers.value) return;
-
-      const ok = confirm(
-        `Eliminar usuario ${u.email} (soft delete = inactive)?\n` +
-        `Recomendado para no romper citas/relaciones en BD.`
-      );
+      const ok = confirm(`Eliminar (soft) al usuario ${u.email}?`);
       if (!ok) return;
 
       try {
-        // OJO: tu backend DELETE hace status='inactive' (soft delete)
         await api({ path: "users", id: String(u.id) }, { method: "DELETE" });
         await loadUsersSafe();
       } catch (e) {
         errorMsg.value = e.message;
       }
     }
-
 
     // -------- Appointments
     const appointments = ref([]);

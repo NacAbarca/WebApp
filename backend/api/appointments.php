@@ -20,41 +20,51 @@ function valid_status(string $s): bool {
 }
 
 if ($method === 'GET') {
-  $from = $_GET['from'] ?? null; // YYYY-MM-DD
-  $to   = $_GET['to'] ?? null;   // YYYY-MM-DD
+  $from = $_GET['from'] ?? null;
+  $to   = $_GET['to'] ?? null;
 
-  $where = [];
+  $meId = (int)($_SESSION['user']['id'] ?? 0);
+  $role = $_SESSION['user']['role'] ?? '';
+
   $params = [];
+  $where = [];
 
-  if ($from) { $where[] = "a.start_at >= ?"; $params[] = $from . " 00:00:00"; }
-  if ($to)   { $where[] = "a.start_at <= ?"; $params[] = $to . " 23:59:59"; }
+  if ($from) {
+    $where[] = "a.start_at >= ?";
+    $params[] = $from;
+  }
 
-  if (!can_manage_all($role)) {
+  if ($to) {
+    $where[] = "a.end_at <= ?";
+    $params[] = $to;
+  }
+
+  // 🔐 CLAVE DEL SPRINT Y
+  if ($role !== 'admin') {
     $where[] = "a.user_id = ?";
     $params[] = $meId;
-  } else {
-    if (isset($_GET['user_id'])) {
-      $where[] = "a.user_id = ?";
-      $params[] = (int)$_GET['user_id'];
-    }
   }
 
   $sql = "
-    SELECT
-      a.id, a.user_id, a.staff_id, a.start_at, a.end_at, a.status, a.notes, a.created_at,
-      u.name AS user_name, u.email AS user_email,
-      s.name AS staff_name, s.email AS staff_email
+    SELECT 
+      a.id, a.user_id, a.start_at, a.end_at, a.status, a.notes,
+      u.name AS user_name, u.email AS user_email
     FROM appointments a
     JOIN users u ON u.id = a.user_id
-    LEFT JOIN users s ON s.id = a.staff_id
   ";
-  if ($where) $sql .= " WHERE " . implode(" AND ", $where);
-  $sql .= " ORDER BY a.start_at ASC";
+
+  if ($where) {
+    $sql .= " WHERE " . implode(" AND ", $where);
+  }
+
+  $sql .= " ORDER BY a.start_at DESC";
 
   $stmt = $pdo->prepare($sql);
   $stmt->execute($params);
+
   json_ok(['appointments' => $stmt->fetchAll()]);
 }
+
 
 if ($method === 'POST') {
   $body = request_json();

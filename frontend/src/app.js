@@ -402,474 +402,431 @@ createApp({
   },
 
   template: `
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col col-12">
+  <!------------------------------>
+  <!-- start: Login form -->
+  <!------------------------------>
+  <div v-if="!user">
+      <main class="w-100 m-auto" style="max-width: 330px; padding: 1rem;"> 
+          <form> 
+              <img class="mb-4" src="/docs/5.3/assets/brand/bootstrap-logo.svg" alt="" width="72" height="57"> 
+              <h1 class="h3 mb-3 fw-normal">Iniciar sesión</h1> 
 
-        <header class="p-3 mb-3 border-bottom"> 
-          <div class="container-fluid"> 
-            <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"> 
+              <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+              <div class="form-floating"> 
+                  <input type="email" class="form-control" id="floatingInput" placeholder="Se ingresa con su correo" v-model="email" autocomplete="username"> 
+                  <label for="floatingInput">Correo</label> 
+              </div> 
               
-              <a href="/" class="d-flex align-items-center mb-2 mb-lg-0 link-body-emphasis text-decoration-none"> 
-                <svg class="bi me-2" width="40" height="32" role="img" aria-label="Bootstrap">
-                  <use xlink:href="#bootstrap"></use>
-                </svg> 
-              </a> 
+              <div class="form-floating"> 
+                  <input type="password" class="form-control" id="floatingPassword" placeholder="Se ingresa con su contraseña" v-model="password" autocomplete="current-password"> 
+                  <label for="floatingPassword">Contraseña</label> 
+              </div> 
+              <button class="btn btn-primary w-100 py-2" :disabled="loading" @click="login">
+                  {{ loading ? "Ingresando..." : "Iniciar sesión" }}
+              </button> 
+              <p class="mt-5 mb-3 text-body-secondary">© 2025–2026</p> 
+          </form> 
+      </main>
+  </div>
+  <!------------------------------>
+  <!--- end: Login form --->
+  <!------------------------------>
+  <div v-else>
+      <!--- Body content --->
+      <div class="container-fluid">
+          <div class="row">
+              <div class="col col-12">
+                  
+                  <!---Header--->
+                  <header class="p-3 mb-3 border-bottom"> 
+                      <div class="container-fluid"> 
+                          <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"> 
+                          
+                              <a href="/" class="d-flex align-items-center mb-2 mb-lg-0 link-body-emphasis text-decoration-none"> 
+                                  <svg class="bi me-2" width="40" height="32" role="img" aria-label="Bootstrap">
+                                      <use xlink:href="#bootstrap"></use>
+                                  </svg> 
+                              </a> 
 
-              <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0"> 
-                
-                <li><a href="#"class="nav-link px-2 link-secondary" :class="{ active: view==='appointments' }" @click="go('appointments')">📅 Citas</a></li> 
-                <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='history' }" @click="go('history')">🕘 Historial</a></li> 
-                <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='patient' }" @click="go('patient')">👥 Pacientes</a></li>
-                <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='users' }" @click="go('users')">👥 Equipos</a></li> 
-                <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='settings' }" @click="go('settings')">⚙️ Ajustes</a></li> 
-                <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='audit' }" @click="go('audit')">🧾 Auditoría</a></li> 
+                              <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0"> 
+                                  
+                                  <li><a href="#"class="nav-link px-2 link-secondary" :class="{ active: view==='appointments' }" @click="go('appointments')">📅 Citas</a></li> 
+                                  <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='history' }" @click="go('history')">🕘 Historial</a></li> 
+                                  <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='patient' }" @click="go('patient')">👥 Pacientes</a></li>
+                                  <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='users' }" @click="go('users')">👥 Equipos</a></li> 
+                                  <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='settings' }" @click="go('settings')">⚙️ Ajustes</a></li> 
+                                  <li><a href="#" class="nav-link px-2 link-body-emphasis" :class="{ active: view==='audit' }" @click="go('audit')">🧾 Auditoría</a></li> 
 
-              </ul> 
-              
-              <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3" role="search"> 
-                <input type="search" class="form-control" placeholder="Search..." aria-label="Search"> 
-              </form> <div class="dropdown text-end"> 
-              
-              <a href="#" class="d-block link-body-emphasis text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"> 
-                <img src="https://github.com/mdo.png" alt="mdo" width="32" height="32" class="rounded-circle"> 
-              </a> 
+                              </ul> 
+                              
+                              <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3" role="search"> 
+                                  <input type="search" class="form-control" placeholder="Search..." aria-label="Search"> 
+                              </form> 
+                              
+                              <div class="dropdown text-end"> 
+                              
+                                  <a href="#" class="d-block link-body-emphasis text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"> 
+                                      <img src="https://github.com/mdo.png" alt="mdo" width="32" height="32" class="rounded-circle"> 
+                                  </a> 
 
-              <ul class="dropdown-menu text-small"> 
-                <li><a class="dropdown-item" href="#">New project...</a></li> 
-                <li><a class="dropdown-item" href="#">Settings</a></li> 
-                <li><a class="dropdown-item" href="#">Profile</a></li> 
-                <li><hr class="dropdown-divider"></li> 
-                <li><a class="dropdown-item" href="#" @click="logout">Cerrar sesión</a></li> 
-              </ul> 
+                                  <ul class="dropdown-menu text-small"> 
+                                      <li><a class="dropdown-item" href="#">New project...</a></li> 
+                                      <li><a class="dropdown-item" href="#">Settings</a></li> 
+                                      <li><a class="dropdown-item" href="#">Profile</a></li> 
+                                      <li><hr class="dropdown-divider"></li> 
+                                      <li><a class="dropdown-item" href="#" @click="logout">Cerrar sesión</a></li> 
+                                  </ul>
+                              </div>
+                          </div>
+                      </div>
+                  </header>
+                  <!---End Header--->
+                  <div class="row">
 
-            </div>
+                      <!-- Sidebar -->
+                      <div class="col col-2">SideBar (Pendiente)</div>
+                      <!-- end: SideBar -->
+
+                      <!-- Main content -->
+                      <div class="col col-10">
+
+                          <div class="d-flex justify-content-between align-items-center mb-4">
+                              <div>
+                                  <h1 class="h3 mb-1">WebApp Citas</h1>
+                                  <div class="text-muted">Admin panel (login + usuarios)</div>
+                              </div>
+                              <button v-if="user" class="btn btn-outline-danger" @click="logout">Cerrar sesión</button>
+                          </div>
+
+                          <!------------USUARIOS Y ADMIN ------------------>
+                          <div v-if="view==='users' && isAdmin"> 
+                              <div class="alert alert-success d-flex justify-content-between align-items-center">
+                                  <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
+
+                                  <!-- wrapper para tooltip aunque esté disabled -->
+                                  <span
+                                      class="d-inline-block"
+                                      tabindex="0"
+                                      data-bs-toggle="tooltip"
+                                      :data-bs-title="canManageUsers ? 'Crear usuario' : 'Solo admin puede gestionar usuarios'"
+                                      >
+                                      <button
+                                      class="btn btn-sm btn-success"
+                                      :disabled="!canManageUsers"
+                                      @click="openCreate"
+                                      >
+                                      + Nuevo usuario
+                                      </button>
+                                  </span>
+                              </div>
+                              <div class="card shadow-sm mb-4">
+
+                                  <div class="card-header d-flex justify-content-between align-items-center">
+                                      <div class="fw-semibold">Usuarios</div>
+                                  </div>
+
+                                  <div class="table-responsive">
+
+                                      <table class="table table-striped mb-0 table-hover">
+                                          <thead>
+                                              <tr>
+                                              <th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Status</th><th>Acciones</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              <tr v-for="u in users" :key="u.id">
+                                              <td>{{ u.id }}</td>
+                                              <td>{{ u.name }}</td>
+                                              <td>{{ u.email }}</td>
+                                              <td><span class="badge text-bg-secondary">{{ u.role }}</span></td>
+                                              <td>
+                                                  <span class="badge" :class="u.status==='active' ? 'text-bg-success' : 'text-bg-warning'">
+                                                  {{ u.status }}
+                                                  </span>
+                                              </td>
+
+                                              <td class="d-flex gap-2">
+                                                  <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
+                                                  Editar
+                                                  </button>
+
+                                                  <button class="btn btn-sm btn-outline-warning" :disabled="!canManageUsers" @click="deactivate(u)">
+                                                  Desactivar
+                                                  </button>
+
+                                                  <span
+                                                  class="d-inline-block"
+                                                  tabindex="0"
+                                                  data-bs-toggle="tooltip"
+                                                  :data-bs-title="canManageUsers ? 'Eliminar (soft)' : 'No autorizado por rol'"
+                                                  >
+                                                  <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deleteUser(u)">
+                                                      Eliminar
+                                                  </button>
+                                                  </span>
+                                              </td>
+                                              </tr>
+                                              <tr v-if="users.length===0">
+                                              <td colspan="6" class="text-muted p-4">Sin usuarios</td>
+                                              </tr>
+
+                                          </tbody>
+                                      </table>
+
+                                  </div>
+
+                                  <div class="card-footer">
+                                      <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>
+                                  </div>
+
+                              </div>
+                          </div>
+
+                          <!---------CITAS------------>
+                          <div v-if="view==='appointments'">
+
+                              <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
+
+                              <div class="card shadow-sm mb-4">
+                                  <div class="card-header">
+
+                                      <div class="d-flex justify-content-between align-items-center">
+                                          <h5 class="h5 mb-0">Gestion de citas</h5>
+                                          <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+                                      </div>
+                                      
+                                  </div>
+                                  <div class="card-body">
+
+                                      <div class="row g-2 align-items-end">
+                                          <div class="col-md-3">
+
+                                              <label class="form-label">Usuario</label>
+
+                                              <select class="form-select" v-model="apptForm.user_id">
+                                                  <option value="">Selecciona usuario</option>
+                                                  <option v-for="u in selectableUsers" :key="u.id" :value="String(u.id)">
+                                                      {{ u.name }} ({{ u.email }})
+                                                  </option>
+                                              </select>
+
+                                          </div>
+
+                                          <div class="col-md-3">
+                                              <label class="form-label">Inicio (DD-MM-YYYY HH:MM)</label>
+                                              <input type="text" class="form-control" v-model="apptForm.start_at" placeholder="15-01-2026 10:00" />
+                                          </div>
+
+                                          <div class="col-md-3">
+                                              <label class="form-label">Termino (DD-MM-YYYY HH:MM)</label>
+                                              <input type="text" class="form-control" v-model="apptForm.end_at" placeholder="11-01-2026 10:30" />
+                                          </div>
+
+                                          <div class="col-md-2">
+                                              <label class="form-label">Notas</label>
+                                              <input class="form-control" v-model="apptForm.notes" placeholder="Motivo..." />
+                                          </div>
+
+                                          <div class="col-md-1 d-grid">
+                                              <span
+                                              class="d-inline-block"
+                                              tabindex="0"
+                                              data-bs-toggle="tooltip"
+                                              :data-bs-title="createDisabledReason || 'Crear cita'"
+                                              >
+                                              <button class="btn btn-success w-100" :disabled="!canCreateAppointment" @click="createAppointment">
+                                                  Crear
+                                              </button>
+                                              </span>
+                                          </div>
+                                      </div>
+
+                                      <hr>
+
+                                      <table class="table table-hover table-responsive">
+                                          <thead>
+                                              <tr>
+                                              <th scope="col"> ID</th>
+                                              <th scope="col"> Usuario</th>
+                                              <th scope="col"> Start</th>
+                                              <th scope="col"> End</th>
+                                              <th scope="col"> Status</th>
+                                              <th scope="col"> Acciones</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              <tr v-for="a in appointments" :key="a.id">
+                                                  <td>{{ a.id }}</td>
+                                                  <td>
+                                                      <div class="fw-semibold">{{ a.user_name }}</div>
+                                                      <div class="text-muted small">{{ a.user_email }}</div>
+                                                  </td>
+                                                  <td>{{ dbToUi(a.start_at) }}</td>
+                                                  <td>{{ dbToUi(a.end_at) }}</td>
+                                                  <td><span class="badge text-bg-info">{{ a.status }}</span></td>
+                                                  <td class="d-flex flex-wrap gap-2">
+                                                      <button class="btn btn-sm btn-outline-primary" @click="setAppointmentStatus(a,'confirmed')">Confirmar</button>
+                                                      <button class="btn btn-sm btn-outline-success" @click="setAppointmentStatus(a,'done')">Done</button>
+                                                      <button class="btn btn-sm btn-outline-warning" @click="setAppointmentStatus(a,'no_show')">No-show</button>
+                                                      <button class="btn btn-sm btn-outline-danger" @click="cancelAppointment(a)">Cancelar</button>
+                                                  </td>
+                                              </tr>
+                                              <tr v-if="appointments.length===0">
+                                                  <td colspan="6" class="text-muted p-4">Sin citas</td>
+                                              </tr>
+                                          </tbody>
+                                      </table>
+
+                                  </div>
+                                  <div class="card-footer">
+                                      <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
+                                  </div>  
+                              </div>
+
+                              <!---- Citas: tabla ---->
+                          </div>
+
+                          <!-----------PACIENTES---------->
+                          <div v-if="view==='patient'" class="card shadow-sm mb-4">
+                              <div class="card-header">
+
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <h2 class="h5 mb-2">Gestion de usuarios</h2>
+                                  <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+                              </div>
+                              
+                              </div>
+                              <div class="card-body">
+                              <div class="text-muted">Próximo sprint: tabla con cambios de estado por cita.</div>
+                              </div>
+                              <div class="card-footer">
+                              footer
+                              </div>  
+                          </div>
+
+                          <!-----------HISTORIAL---------->
+                          <div v-if="view==='history'" class="card shadow-sm mb-4">
+                              <div class="card-header">
+
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <h2 class="h5 mb-2">Historial</h2>
+                                  <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+                              </div>
+                              
+                              </div>
+                              <div class="card-body">
+                              <div class="text-muted">Próximo sprint: tabla con cambios de estado por cita.</div>
+                              </div>
+                              <div class="card-footer">
+                              footer
+                              </div>  
+                          </div>
+                          
+                          <!-----------AJUSTES---------->
+                          <div v-if="view==='settings'" class="card shadow-sm mb-4">
+                              <div class="card-header">
+
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <h2 class="h5 mb-2">Ajustes</h2>
+                                  <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+                              </div>
+                              
+                              </div>
+                              <div class="card-body">
+                              <div class="text-muted">Próximo sprint: preferencias de fechas, filtros, etc.</div>
+                              </div>
+                              <div class="card-footer">
+                              footer
+                              </div>  
+                          </div>
+                          <!-----------AUDITORIA---------->
+                          <div v-if="view==='audit' && canAudit" class="card shadow-sm mb-4">
+                              <div class="card-header">
+
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <h2 class="h5 mb-2">Auditoría</h2>
+                                  <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+                              </div>
+                              
+                              </div>
+                              <div class="card-body">
+                              <div class="text-muted">Próximo sprint: eventos (login, cambios usuarios, cambios citas).</div>
+                              </div>
+                              <div class="card-footer">
+                              footer
+                              </div>  
+                          </div>
+                      
+                          <!-- ✅ Modal New Users (NECESARIO para que el botón funcione) -->
+
+                          <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+                              <div class="modal-dialog modal-dialog-centered">
+
+                              <div class="modal-content">
+
+                                  <div class="modal-header">
+                                  <h5 class="modal-title"> {{ form.id ? 'Editar usuario' : 'Nuevo usuario' }} </h5>
+                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                  </div>
+
+                                  <div class="modal-body">
+
+                                  <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+
+                                  <div class="mb-3">
+                                      <label class="form-label" for="userName">Nombre</label>
+                                      <input class="form-control" type="text" id="userName" placeholder="Ingresa con su nombre" v-model="form.name" />
+                                  </div>
+
+                                  <div class="mb-3" v-if="!form.id">
+                                      <label class="form-label" for="userEmail">Email</label>
+                                      <input class="form-control" type="email" id="userEmail" placeholder="Ingresa su email" v-model="form.email" />
+                                  </div>
+
+                                  <div class="mb-3">
+                                      <label class="form-label">Cual es el rol del usuario</label>
+                                      <select class="form-select" aria-label="Selecciona un rol" v-model="form.role">
+                                      <option value="admin">admin</option>
+                                      <option value="staff">staff</option>
+                                      <option value="user">user</option>
+                                      <option value="interpreter">interpreter</option>
+                                      </select>
+                                  </div>
+
+                                  <div class="mb-3">
+                                      <label class="form-label">Cual es su estado</label>
+                                      <select class="form-select" aria-label="Selecciona un estado" v-model="form.status">
+                                      <option value="active">Activo</option>
+                                      <option value="inactive">Inactivo</option>
+                                      </select>
+                                  </div>
+
+                                  <div class="mb-3">
+                                      <label class="form-label" for="userPassword">{{ form.id ? 'Nueva contraseña (opcional)' : 'Password' }}</label>
+                                      <input class="form-control" type="password" id="userPassword" v-model="form.password" />
+                                  </div>
+                                  </div>
+
+                                  <div class="modal-footer">
+                                  <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                  <button class="btn btn-primary" @click="saveUser">Guardar</button>
+                                  </div>
+                              </div>
+                              </div>
+                          </div>
+                          <!-- ✅ End Modal New Users -->
+
+                          <!-- Panel -->
+                      </div>
+                      <!-- end: Main content -->
+                  </div>
+
+              </div>
           </div>
-        </header>
-      
       </div>
-    </div>
-    <div class="row">
-      <div class="col col-2">SideBar (Pendiente)</div>
-      <div class="col col-10">
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h1 class="h3 mb-1">WebApp Citas</h1>
-            <div class="text-muted">Admin panel (login + usuarios)</div>
-          </div>
-          <button v-if="user" class="btn btn-outline-danger" @click="logout">Cerrar sesión</button>
-        </div>
-
-        <!------------------------------>
-        <!-- start: Login form -->
-        <!------------------------------>
-        <div v-if="!user" class="card shadow-sm" style="max-width:520px;">
-          <div class="card-body">
-            <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
-
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input class="form-control" v-model="email" autocomplete="username" />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Password</label>
-              <input class="form-control" type="password" v-model="password" autocomplete="current-password" />
-            </div>
-
-            <button class="btn btn-primary w-100" :disabled="loading" @click="login">
-              {{ loading ? "Ingresando..." : "Ingresar" }}
-            </button>
-          </div>
-        </div>
-        <!------------------------------>
-        <!--- end: Login form --->
-        <!------------------------------>
-
-        <!-- Panel -->
-        <div v-else>
-
-          <!-------------------->
-          <!-- start: Submenu -->
-          <!-------------------->
-          <ul class="nav nav-tabs mb-4">
-
-            <li class="nav-item">
-              <button class="nav-link" :class="{ active: view==='appointments' }" @click="go('appointments')">
-                📅 Citas
-              </button>
-            </li>
-
-            <li class="nav-item">
-              <button class="nav-link" :class="{ active: view==='history' }" @click="go('history')">
-                🕘 Historial
-              </button>
-            </li>
-
-            <li class="nav-item" v-if="isAdmin">
-              <button class="nav-link" :class="{ active: view==='users' }" @click="go('users')">
-                👥 Usuarios
-              </button>
-            </li>
-
-            <li class="nav-item">
-              <button class="nav-link" :class="{ active: view==='settings' }" @click="go('settings')">
-                ⚙️ Ajustes
-              </button>
-            </li>
-
-            <li class="nav-item" v-if="canAudit">
-              <button class="nav-link" :class="{ active: view==='audit' }" @click="go('audit')">
-                🧾 Auditoría
-              </button>
-            </li>
-          </ul>
-          <!-------------------->
-          <!--- end: Submenu --->
-          <!-------------------->
-
-          <!------------------------------>
-          <!-- start: ✅ Users is Admin -->
-          <!------------------------------>
-          <div v-if="view==='users' && isAdmin">
-            
-            <div class="alert alert-success d-flex justify-content-between align-items-center">
-              <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
-
-              <!-- wrapper para tooltip aunque esté disabled -->
-              <span
-                class="d-inline-block"
-                tabindex="0"
-                data-bs-toggle="tooltip"
-                :data-bs-title="canManageUsers ? 'Crear usuario' : 'Solo admin puede gestionar usuarios'"
-              >
-                <button
-                  class="btn btn-sm btn-success"
-                  :disabled="!canManageUsers"
-                  @click="openCreate"
-                >
-                  + Nuevo usuario
-                </button>
-              </span>
-            </div>
-
-
-            <!-- ✅ Usuarios: SOLO admin -->
-
-            <div class="card shadow-sm mb-4">
-
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <div class="fw-semibold">Usuarios</div>
-              </div>
-
-              <div class="table-responsive">
-
-                <table class="table table-striped mb-0 table-hover">
-                  <thead>
-                    <tr>
-                      <th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Status</th><th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="u in users" :key="u.id">
-                      <td>{{ u.id }}</td>
-                      <td>{{ u.name }}</td>
-                      <td>{{ u.email }}</td>
-                      <td><span class="badge text-bg-secondary">{{ u.role }}</span></td>
-                      <td>
-                        <span class="badge" :class="u.status==='active' ? 'text-bg-success' : 'text-bg-warning'">
-                          {{ u.status }}
-                        </span>
-                      </td>
-
-                      <td class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
-                          Editar
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-warning" :disabled="!canManageUsers" @click="deactivate(u)">
-                          Desactivar
-                        </button>
-
-                        <span
-                          class="d-inline-block"
-                          tabindex="0"
-                          data-bs-toggle="tooltip"
-                          :data-bs-title="canManageUsers ? 'Eliminar (soft)' : 'No autorizado por rol'"
-                        >
-                          <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deleteUser(u)">
-                            Eliminar
-                          </button>
-                        </span>
-                      </td>
-                    </tr>
-                    <tr v-if="users.length===0">
-                      <td colspan="6" class="text-muted p-4">Sin usuarios</td>
-                    </tr>
-
-                  </tbody>
-                </table>
-
-              </div>
-
-              <div class="card-footer">
-                <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>
-              </div>
-            </div>
-          </div>
-          <!------------------------------>
-          <!--- end: ✅ Users is Admin --->
-          <!------------------------------>
-          
-          <!--------------------->
-          <!-- start: ✅ Citas -->
-          <!--------------------->
-
-          <div v-if="view==='appointments'">
-
-            <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
-
-            <div class="card shadow-sm mb-4">
-              <div class="card-header">
-
-                <div class="d-flex justify-content-between align-items-center">
-                  <h5 class="h5 mb-0">Gestion de citas</h5>
-                  <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-                </div>
-                
-              </div>
-              <div class="card-body">
-                <div class="row g-2 align-items-end">
-                  <div class="col-md-3">
-
-                    <label class="form-label">Usuario</label>
-
-                    <select class="form-select" v-model="apptForm.user_id">
-                      <option value="">Selecciona usuario</option>
-                      <option v-for="u in selectableUsers" :key="u.id" :value="String(u.id)">
-                        {{ u.name }} ({{ u.email }})
-                      </option>
-                    </select>
-
-                  </div>
-
-                  <div class="col-md-3">
-                    <label class="form-label">Inicio (DD-MM-YYYY HH:MM)</label>
-                    <input type="text" class="form-control" v-model="apptForm.start_at" placeholder="15-01-2026 10:00" />
-                  </div>
-
-                  <div class="col-md-3">
-                    <label class="form-label">Termino (DD-MM-YYYY HH:MM)</label>
-                    <input type="text" class="form-control" v-model="apptForm.end_at" placeholder="11-01-2026 10:30" />
-                  </div>
-
-                  <div class="col-md-2">
-                    <label class="form-label">Notas</label>
-                    <input class="form-control" v-model="apptForm.notes" placeholder="Motivo..." />
-                  </div>
-
-                  <div class="col-md-1 d-grid">
-                    <span
-                      class="d-inline-block"
-                      tabindex="0"
-                      data-bs-toggle="tooltip"
-                      :data-bs-title="createDisabledReason || 'Crear cita'"
-                    >
-                      <button class="btn btn-success w-100" :disabled="!canCreateAppointment" @click="createAppointment">
-                        Crear
-                      </button>
-                    </span>
-                  </div>
-                </div>
-
-                <hr>
-                <table class="table table-hover table-responsive">
-                  <thead>
-                    <tr>
-                      <th scope="col"> ID</th>
-                      <th scope="col"> Usuario</th>
-                      <th scope="col"> Start</th>
-                      <th scope="col"> End</th>
-                      <th scope="col"> Status</th>
-                      <th scope="col"> Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="a in appointments" :key="a.id">
-                      <td>{{ a.id }}</td>
-                      <td>
-                        <div class="fw-semibold">{{ a.user_name }}</div>
-                        <div class="text-muted small">{{ a.user_email }}</div>
-                      </td>
-                      <td>{{ dbToUi(a.start_at) }}</td>
-                      <td>{{ dbToUi(a.end_at) }}</td>
-                      <td><span class="badge text-bg-info">{{ a.status }}</span></td>
-                      <td class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-sm btn-outline-primary" @click="setAppointmentStatus(a,'confirmed')">Confirmar</button>
-                        <button class="btn btn-sm btn-outline-success" @click="setAppointmentStatus(a,'done')">Done</button>
-                        <button class="btn btn-sm btn-outline-warning" @click="setAppointmentStatus(a,'no_show')">No-show</button>
-                        <button class="btn btn-sm btn-outline-danger" @click="cancelAppointment(a)">Cancelar</button>
-                      </td>
-                    </tr>
-                    <tr v-if="appointments.length===0">
-                      <td colspan="6" class="text-muted p-4">Sin citas</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-              </div>
-              <div class="card-footer">
-                <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
-              </div>  
-            </div>
-
-            <!---- Citas: tabla ---->
-          </div>
-          <!--------------------->
-          <!--- end: ✅ Citas --->
-          <!--------------------->
-
-          <div v-if="view==='patient'" class="card shadow-sm mb-4">
-            <div class="card-header">
-
-              <div class="d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-2">Gestion de usuarios</h2>
-                <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-              </div>
-              
-            </div>
-            <div class="card-body">
-              <div class="text-muted">Próximo sprint: tabla con cambios de estado por cita.</div>
-            </div>
-            <div class="card-footer">
-              footer
-            </div>  
-          </div>
-
-          <div v-if="view==='history'" class="card shadow-sm mb-4">
-            <div class="card-header">
-
-              <div class="d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-2">Historial</h2>
-                <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-              </div>
-              
-            </div>
-            <div class="card-body">
-              <div class="text-muted">Próximo sprint: tabla con cambios de estado por cita.</div>
-            </div>
-            <div class="card-footer">
-              footer
-            </div>  
-          </div>
-
-          <div v-if="view==='settings'" class="card shadow-sm mb-4">
-            <div class="card-header">
-
-              <div class="d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-2">Ajustes</h2>
-                <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-              </div>
-              
-            </div>
-            <div class="card-body">
-              <div class="text-muted">Próximo sprint: preferencias de fechas, filtros, etc.</div>
-            </div>
-            <div class="card-footer">
-              footer
-            </div>  
-          </div>
-
-          <div v-if="view==='audit' && canAudit" class="card shadow-sm mb-4">
-            <div class="card-header">
-
-              <div class="d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-2">Auditoría</h2>
-                <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-              </div>
-              
-            </div>
-            <div class="card-body">
-              <div class="text-muted">Próximo sprint: eventos (login, cambios usuarios, cambios citas).</div>
-            </div>
-            <div class="card-footer">
-              footer
-            </div>  
-          </div>
-          
-
-        
-
-
-
-
-          <!-- ✅ Modal New Users (NECESARIO para que el botón funcione) -->
-
-          <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-
-              <div class="modal-content">
-
-                <div class="modal-header">
-                  <h5 class="modal-title"> {{ form.id ? 'Editar usuario' : 'Nuevo usuario' }} </h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-
-                  <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
-
-
-                  <div class="mb-3">
-                    <label class="form-label" for="userName">Nombre</label>
-                    <input class="form-control" type="text" id="userName" placeholder="Ingresa con su nombre" v-model="form.name" />
-                  </div>
-
-                  <div class="mb-3" v-if="!form.id">
-                    <label class="form-label" for="userEmail">Email</label>
-                    <input class="form-control" type="email" id="userEmail" placeholder="Ingresa su email" v-model="form.email" />
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label">Cual es el rol del usuario</label>
-                    <select class="form-select" aria-label="Selecciona un rol" v-model="form.role">
-                      <option value="admin">admin</option>
-                      <option value="staff">staff</option>
-                      <option value="user">user</option>
-                      <option value="interpreter">interpreter</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label">Cual es su estado</label>
-                    <select class="form-select" aria-label="Selecciona un estado" v-model="form.status">
-                      <option value="active">Activo</option>
-                      <option value="inactive">Inactivo</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label" for="userPassword">{{ form.id ? 'Nueva contraseña (opcional)' : 'Password' }}</label>
-                    <input class="form-control" type="password" id="userPassword" v-model="form.password" />
-                  </div>
-                </div>
-
-                <div class="modal-footer">
-                  <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                  <button class="btn btn-primary" @click="saveUser">Guardar</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- ✅ End Modal New Users -->
-
-        </div>
-      
-      </div>
-    </div>
-
-    
+      <!--- Body content --->
   </div>
   `,
 }).mount("#app");

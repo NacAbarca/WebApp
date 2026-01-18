@@ -20,36 +20,51 @@ createApp({
     const errorMsg = ref("");
 
     function parseDMYHi(s) {
-  // "DD-MM-YYYY HH:MM"
-  const m = String(s || "").trim().match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})$/);
-    if (!m) return null;
+      const raw = String(s || "").trim();
 
-    const dd = Number(m[1]);
-    const mm = Number(m[2]);
-    const yyyy = Number(m[3]);
-    const HH = Number(m[4]);
-    const ii = Number(m[5]);
+      // Acepta:
+      // 12-12-2025 12:00
+      // 12/12/2025 12:00
+      // 12-12-2025 12:00:00
+      // 2025-12-12T12:00  (datetime-local)
+      let m = raw.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (m) {
+        const dd = Number(m[1]), mm = Number(m[2]), yyyy = Number(m[3]);
+        const HH = Number(m[4]), ii = Number(m[5]), ss = Number(m[6] || 0);
 
-    // Validación básica de rangos
-    if (mm < 1 || mm > 12) return null;
-    if (dd < 1 || dd > 31) return null;
-    if (HH < 0 || HH > 23) return null;
-    if (ii < 0 || ii > 59) return null;
+        const d = new Date(yyyy, mm - 1, dd, HH, ii, ss, 0);
+        if (
+          d.getFullYear() !== yyyy ||
+          d.getMonth() !== (mm - 1) ||
+          d.getDate() !== dd ||
+          d.getHours() !== HH ||
+          d.getMinutes() !== ii
+        ) return null;
 
-    // Date usa mes 0-11
-    const d = new Date(yyyy, mm - 1, dd, HH, ii, 0, 0);
+        return d;
+      }
 
-    // Valida que no “desborde” (31/02 etc)
-    if (
-      d.getFullYear() !== yyyy ||
-      d.getMonth() !== (mm - 1) ||
-      d.getDate() !== dd ||
-      d.getHours() !== HH ||
-      d.getMinutes() !== ii
-    ) return null;
+      // Soporta datetime-local nativo: 2025-12-12T12:00(:00)
+      m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (m) {
+        const yyyy = Number(m[1]), mm = Number(m[2]), dd = Number(m[3]);
+        const HH = Number(m[4]), ii = Number(m[5]), ss = Number(m[6] || 0);
 
-    return d;
-  }
+        const d = new Date(yyyy, mm - 1, dd, HH, ii, ss, 0);
+        if (
+          d.getFullYear() !== yyyy ||
+          d.getMonth() !== (mm - 1) ||
+          d.getDate() !== dd ||
+          d.getHours() !== HH ||
+          d.getMinutes() !== ii
+        ) return null;
+
+        return d;
+      }
+
+      return null;
+    }
+
 
 
     function dbToUi(dbStr) {
@@ -61,14 +76,19 @@ createApp({
       return `${d}-${mo}-${y} ${h}:${mi}`;
     }
 
-    function uiToDb(uiStr) {
-      // "29-12-2026 10:00" -> "2026-12-29 10:00:00"
-      if (!uiStr) return "";
-      const m = String(uiStr).trim().match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})$/);
-      if (!m) return "";
-      const [, d, mo, y, h, mi] = m;
-      return `${y}-${mo}-${d} ${h}:${mi}:00`;
-   }
+  function uiToDb(uiStr) {
+  const d = parseDMYHi(uiStr);
+  if (!d) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const HH = pad(d.getHours());
+  const ii = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  return `${yyyy}-${mm}-${dd} ${HH}:${ii}:${ss}`;
+}
+
 
 
     async function loadMe() {

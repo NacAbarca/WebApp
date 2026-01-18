@@ -82,7 +82,7 @@ if ($method === 'GET') {
     LEFT JOIN users s ON s.id = a.staff_id
   ";
   if ($where) $sql .= " WHERE " . implode(" AND ", $where);
-  $sql .= " ORDER BY a.start_at ASC";
+  $sql .= " ORDER BY a.created_at DESC";
 
   $stmt = $pdo->prepare($sql);
   $stmt->execute($params);

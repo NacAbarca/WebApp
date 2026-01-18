@@ -35,6 +35,8 @@ $routes = [
   'users' => __DIR__ . '/../api/users.php',
   'appointments' => __DIR__ . '/../api/appointments.php',
   'appointment_history' => __DIR__ . '/../api/appointment_history.php',
+  'patients' => __DIR__ . '/../api/patients.php',
+
 ];
 
 if (!isset($routes[$path])) {

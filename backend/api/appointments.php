@@ -84,6 +84,29 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+  $attention_type = isset($body['attention_type']) ? trim((string)$body['attention_type']) : null;
+  $sector_at      = isset($body['sector_at']) ? trim((string)$body['sector_at']) : null;
+  $interpreter_id = isset($body['interpreter_id']) ? (int)$body['interpreter_id'] : null;
+
+  // Solo staff/admin puede setear datos clínicos/asignaciones
+  if (!can_manage_all($role)) {
+    if ($attention_type !== null || $sector_at !== null || $interpreter_id !== null) {
+      json_error('Prohibido: solo staff/admin puede asignar tipo/sector/intérprete', 403);
+    }
+  }
+
+  // Si viene interpreter_id, validar que exista
+  if ($interpreter_id) {
+    $chkI = $pdo->prepare("SELECT id, status FROM users WHERE id=? LIMIT 1");
+    $chkI->execute([$interpreter_id]);
+    $i = $chkI->fetch();
+    if (!$i) json_error('interpreter_id no existe', 404);
+    if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
+  }
+
+  // created_by_staff_id: lo fuerza el backend
+  $created_by_staff_id = can_manage_all($role) ? $meId : null;
+
   $body = request_json();
 
   $user_id = (int)($body['user_id'] ?? $meId);
@@ -107,24 +130,52 @@ if ($method === 'POST') {
   $created_by_staff_id = can_manage_all($role) ? $meId : null;
 
   $ins = $pdo->prepare("
-    INSERT INTO appointments
-      (user_id, interpreter_id, created_by_staff_id, start_at, end_at, status, notes)
-    VALUES (?,?,?,?,?,'pending',?)
+    INSERT INTO appointments (user_id, staff_id, start_at, end_at, status, notes, attention_type, sector_at, interpreter_id, created_by_staff_id)
+    VALUES (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
   ");
-
   $ins->execute([
     $user_id,
-    $interpreter_id,
-    $created_by_staff_id,
+    $staff_id,
     $start_at,
     $end_at,
-    $notes
+    $notes,
+    $attention_type,
+    $sector_at,
+    $interpreter_id ?: null,
+    $created_by_staff_id
   ]);
+
 
   json_ok(['id' => (int)$pdo->lastInsertId()]);
 }
 
 if ($method === 'PUT') {
+
+if (can_manage_all($role) && array_key_exists('attention_type', $body)) {
+    $fields[] = "attention_type=?";
+    $params[] = trim((string)$body['attention_type']);
+  }
+
+  if (can_manage_all($role) && array_key_exists('sector_at', $body)) {
+    $fields[] = "sector_at=?";
+    $params[] = trim((string)$body['sector_at']);
+  }
+
+  if (can_manage_all($role) && array_key_exists('interpreter_id', $body)) {
+    $iid = (int)$body['interpreter_id'];
+    if ($iid > 0) {
+      $chkI = $pdo->prepare("SELECT id, status FROM users WHERE id=? LIMIT 1");
+      $chkI->execute([$iid]);
+      $i = $chkI->fetch();
+      if (!$i) json_error('interpreter_id no existe', 404);
+      if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
+      $fields[] = "interpreter_id=?";
+      $params[] = $iid;
+    } else {
+      $fields[] = "interpreter_id=NULL";
+    }
+  }
+
   $id = (int)($_GET['id'] ?? 0);
   if ($id <= 0) json_error('id requerido', null, 422);
 

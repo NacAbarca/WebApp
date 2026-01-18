@@ -11,12 +11,65 @@ createApp({
     const user = ref(null);
     // ---- Views (submenu)
     const view = ref("appointments"); // appointments | history | users | settings | audit
+    
     const isAdmin = computed(() => user.value?.role === "admin");
     const canAudit = computed(() => isAdmin.value);
     function go(v) { view.value = v; }
 
     const loading = ref(false);
     const errorMsg = ref("");
+
+    function parseDMYHi(s) {
+  // "DD-MM-YYYY HH:MM"
+  const m = String(s || "").trim().match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})$/);
+    if (!m) return null;
+
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    const HH = Number(m[4]);
+    const ii = Number(m[5]);
+
+    // Validación básica de rangos
+    if (mm < 1 || mm > 12) return null;
+    if (dd < 1 || dd > 31) return null;
+    if (HH < 0 || HH > 23) return null;
+    if (ii < 0 || ii > 59) return null;
+
+    // Date usa mes 0-11
+    const d = new Date(yyyy, mm - 1, dd, HH, ii, 0, 0);
+
+    // Valida que no “desborde” (31/02 etc)
+    if (
+      d.getFullYear() !== yyyy ||
+      d.getMonth() !== (mm - 1) ||
+      d.getDate() !== dd ||
+      d.getHours() !== HH ||
+      d.getMinutes() !== ii
+    ) return null;
+
+    return d;
+  }
+
+
+    function dbToUi(dbStr) {
+      // "2026-12-29 10:00:00" -> "29-12-2026 10:00"
+      if (!dbStr) return "";
+      const m = String(dbStr).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?$/);
+      if (!m) return dbStr;
+      const [, y, mo, d, h, mi] = m;
+      return `${d}-${mo}-${y} ${h}:${mi}`;
+    }
+
+    function uiToDb(uiStr) {
+      // "29-12-2026 10:00" -> "2026-12-29 10:00:00"
+      if (!uiStr) return "";
+      const m = String(uiStr).trim().match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})$/);
+      if (!m) return "";
+      const [, d, mo, y, h, mi] = m;
+      return `${y}-${mo}-${d} ${h}:${mi}:00`;
+   }
+
 
     async function loadMe() {
       try {
@@ -147,7 +200,6 @@ createApp({
     // -------- Appointments
     const appointments = ref([]);
     const apptError = ref("");
-
     const apptForm = ref({
       user_id: "",
       start_at: "",
@@ -179,18 +231,18 @@ createApp({
       }
     );
 
-    // Permisos: admin puede crear para cualquiera; staff/user solo para sí mismo.
     const createDisabledReason = computed(() => {
-      if (!user.value) return "Debes iniciar sesión";
-      if (!apptForm.value.user_id) return "Selecciona un usuario";
+      const s = parseDMYHi(apptForm.value.start_at);
+      const e = parseDMYHi(apptForm.value.end_at);
 
-      const selectedId = Number(apptForm.value.user_id);
-      const meId = Number(user.value.id);
+      if (!s || !e) return "Formato inválido. Usa d-m-Y H:i (ej: 29-12-2026 10:00)";
+      if (s.getTime() >= e.getTime()) return "Start debe ser ANTES de End";
 
-      if (user.value.role === "admin") return "";
-      if (selectedId !== meId) return "No tienes permiso para crear citas para otros usuarios";
+      if (!apptForm.value.user_id) return "Falta usuario";
       return "";
     });
+
+
 
     const canCreateAppointment = computed(() => createDisabledReason.value === "");
 
@@ -208,12 +260,25 @@ createApp({
         apptError.value = e.message;
       }
     }
-
     async function createAppointment() {
       apptError.value = "";
 
-      // UX pro: si no puede, NO hacemos request, solo tooltip
       if (!canCreateAppointment.value) return;
+
+      // formato UI requerido: d-m-Y H:i
+      const startDb = uiToDb(apptForm.value.start_at);
+      const endDb = uiToDb(apptForm.value.end_at);
+
+      if (!startDb || !endDb) {
+        apptError.value = "Formato inválido. Usa d-m-Y H:i (ej: 29-12-2026 10:00)";
+        return;
+      }
+
+      // Regla: start < end
+      if (startDb >= endDb) {
+        apptError.value = "Start debe ser ANTES que End (no puede ser igual ni después).";
+        return;
+      }
 
       try {
         await api(
@@ -222,8 +287,8 @@ createApp({
             method: "POST",
             body: {
               user_id: Number(apptForm.value.user_id),
-              start_at: apptForm.value.start_at,
-              end_at: apptForm.value.end_at,
+              start_at: startDb,
+              end_at: endDb,
               notes: apptForm.value.notes,
             },
           }
@@ -307,8 +372,11 @@ createApp({
       createAppointment,
       setAppointmentStatus,
       cancelAppointment,
+      dbToUi,
+
 
       view, go, isAdmin, canAudit,
+
 
     };
   },
@@ -490,6 +558,8 @@ createApp({
 
       <div v-if="view==='appointments'">
 
+        <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
+
         <div class="card shadow-sm mb-4">
           <div class="card-header">
 
@@ -515,13 +585,13 @@ createApp({
               </div>
 
               <div class="col-md-3">
-                <label class="form-label">Start (YYYY-MM-DD HH:MM:SS)</label>
-                <input class="form-control" v-model="apptForm.start_at" placeholder="2026-01-15 10:00:00" />
+                <label class="form-label">Inicio (DD-MM-YYYY HH:MM)</label>
+                <input type="text" class="form-control" v-model="apptForm.start_at" placeholder="15-01-2026 10:00" />
               </div>
 
               <div class="col-md-3">
-                <label class="form-label">End (YYYY-MM-DD HH:MM:SS)</label>
-                <input class="form-control" v-model="apptForm.end_at" placeholder="2026-01-15 10:30:00" />
+                <label class="form-label">Termino (DD-MM-YYYY HH:MM)</label>
+                <input type="text" class="form-control" v-model="apptForm.end_at" placeholder="11-01-2026 10:30" />
               </div>
 
               <div class="col-md-2">
@@ -562,8 +632,8 @@ createApp({
                     <div class="fw-semibold">{{ a.user_name }}</div>
                     <div class="text-muted small">{{ a.user_email }}</div>
                   </td>
-                  <td>{{ a.start_at }}</td>
-                  <td>{{ a.end_at }}</td>
+                  <td>{{ dbToUi(a.start_at) }}</td>
+                  <td>{{ dbToUi(a.end_at) }}</td>
                   <td><span class="badge text-bg-info">{{ a.status }}</span></td>
                   <td class="d-flex flex-wrap gap-2">
                     <button class="btn btn-sm btn-outline-primary" @click="setAppointmentStatus(a,'confirmed')">Confirmar</button>
@@ -582,21 +652,6 @@ createApp({
           <div class="card-footer">
             <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
           </div>  
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h2 class="h5 mb-0">Citas</h5>
-          <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-        </div>
-
-        <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
-
-        <div class="card shadow-sm mb-3">
-          <div class="card-body">
-
-            
-
-          </div>
         </div>
 
         <!---- Citas: tabla ---->

@@ -12,6 +12,39 @@ $me = $_SESSION['user'];
 $role = $me['role'] ?? 'user';
 $meId = (int)($me['id'] ?? 0);
 
+// ---- Datetime parser (flexible) ----
+// Acepta varios formatos y normaliza a "Y-m-d H:i:s" para MySQL
+function parse_dt_mysql(string $raw): ?string {
+  $raw = trim($raw);
+  if ($raw === '') return null;
+
+  $formats = [
+    'd-m-Y H:i',
+    'd-m-Y H:i:s',
+    'Y-m-d\TH:i',
+    'Y-m-d\TH:i:s',
+    'Y-m-d H:i',
+    'Y-m-d H:i:s',
+  ];
+
+  foreach ($formats as $fmt) {
+    $dt = DateTimeImmutable::createFromFormat($fmt, $raw);
+    if ($dt instanceof DateTimeImmutable) {
+      $err = DateTimeImmutable::getLastErrors();
+      if ($err && (($err['warning_count'] ?? 0) > 0 || ($err['error_count'] ?? 0) > 0)) continue;
+      return $dt->format('Y-m-d H:i:s');
+    }
+  }
+  return null;
+}
+
+function assert_dt_or_422(?string $dt, string $field): string {
+  if (!$dt) {
+    json_error("Formato inválido en $field. Usa d-m-Y H:i (ej: 29-12-2026 10:00)", 422);
+  }
+  return $dt;
+}
+
 function can_manage_all(string $role): bool {
   return in_array($role, ['admin','staff'], true);
 }
@@ -20,65 +53,62 @@ function valid_status(string $s): bool {
 }
 
 if ($method === 'GET') {
-  $from = $_GET['from'] ?? null;
-  $to   = $_GET['to'] ?? null;
+  $from = $_GET['from'] ?? null; // YYYY-MM-DD
+  $to   = $_GET['to'] ?? null;   // YYYY-MM-DD
 
-  $meId = (int)($_SESSION['user']['id'] ?? 0);
-  $role = $_SESSION['user']['role'] ?? '';
-
-  $params = [];
   $where = [];
+  $params = [];
 
-  if ($from) {
-    $where[] = "a.start_at >= ?";
-    $params[] = $from;
-  }
+  if ($from) { $where[] = "a.start_at >= ?"; $params[] = $from . " 00:00:00"; }
+  if ($to)   { $where[] = "a.start_at <= ?"; $params[] = $to . " 23:59:59"; }
 
-  if ($to) {
-    $where[] = "a.end_at <= ?";
-    $params[] = $to;
-  }
-
-  // 🔐 CLAVE DEL SPRINT Y
-  if ($role !== 'admin') {
+  if (!can_manage_all($role)) {
     $where[] = "a.user_id = ?";
     $params[] = $meId;
+  } else {
+    if (isset($_GET['user_id'])) {
+      $where[] = "a.user_id = ?";
+      $params[] = (int)$_GET['user_id'];
+    }
   }
 
   $sql = "
-    SELECT 
-      a.id, a.user_id, a.start_at, a.end_at, a.status, a.notes,
-      u.name AS user_name, u.email AS user_email
+    SELECT
+      a.id, a.user_id, a.staff_id, a.start_at, a.end_at, a.status, a.notes, a.created_at,
+      u.name AS user_name, u.email AS user_email,
+      s.name AS staff_name, s.email AS staff_email
     FROM appointments a
     JOIN users u ON u.id = a.user_id
+    LEFT JOIN users s ON s.id = a.staff_id
   ";
-
-  if ($where) {
-    $sql .= " WHERE " . implode(" AND ", $where);
-  }
-
-  $sql .= " ORDER BY a.start_at DESC";
+  if ($where) $sql .= " WHERE " . implode(" AND ", $where);
+  $sql .= " ORDER BY a.start_at ASC";
 
   $stmt = $pdo->prepare($sql);
   $stmt->execute($params);
-
   json_ok(['appointments' => $stmt->fetchAll()]);
 }
-
 
 if ($method === 'POST') {
   $body = request_json();
 
-  $user_id = isset($body['user_id']) ? (int)$body['user_id'] : $meId;
+  $user_id  = isset($body['user_id']) ? (int)$body['user_id'] : $meId;
   $staff_id = isset($body['staff_id']) ? (int)$body['staff_id'] : null;
-  $start_at = trim($body['start_at'] ?? '');
-  $end_at   = trim($body['end_at'] ?? '');
-  $notes    = $body['notes'] ?? null;
 
-  if ($start_at === '' || $end_at === '') json_error('start_at y end_at son obligatorios', 422);
+  $start_raw = (string)($body['start_at'] ?? '');
+  $end_raw   = (string)($body['end_at'] ?? '');
+  $notes     = $body['notes'] ?? null;
 
+  $start_at = assert_dt_or_422(parse_dt_mysql($start_raw), 'start_at');
+  $end_at   = assert_dt_or_422(parse_dt_mysql($end_raw), 'end_at');
+
+  // permisos: user solo para sí mismo; staff/admin puede para todos
   if (!can_manage_all($role) && $user_id !== $meId) json_error('Prohibido', 403);
-  if (strtotime($end_at) <= strtotime($start_at)) json_error('end_at debe ser mayor que start_at', 422);
+
+  // reglas QA: start < end (no igual, no invertido)
+  if (strtotime($end_at) <= strtotime($start_at)) {
+    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
+  }
 
   $chk = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
   $chk->execute([$user_id]);
@@ -122,12 +152,25 @@ if ($method === 'PUT') {
   $fields = [];
   $params = [];
 
-  $start_at = array_key_exists('start_at', $body) ? trim((string)$body['start_at']) : $a['start_at'];
-  $end_at   = array_key_exists('end_at', $body)   ? trim((string)$body['end_at'])   : $a['end_at'];
+  $start_at = (string)$a['start_at'];
+  $end_at   = (string)$a['end_at'];
 
-  if (array_key_exists('start_at', $body)) { $fields[] = "start_at=?"; $params[] = $start_at; }
-  if (array_key_exists('end_at', $body))   { $fields[] = "end_at=?";   $params[] = $end_at; }
-  if (array_key_exists('notes', $body))    { $fields[] = "notes=?";    $params[] = $body['notes']; }
+  if (array_key_exists('start_at', $body)) {
+    $start_at = assert_dt_or_422(parse_dt_mysql((string)$body['start_at']), 'start_at');
+    $fields[] = "start_at=?";
+    $params[] = $start_at;
+  }
+
+  if (array_key_exists('end_at', $body)) {
+    $end_at = assert_dt_or_422(parse_dt_mysql((string)$body['end_at']), 'end_at');
+    $fields[] = "end_at=?";
+    $params[] = $end_at;
+  }
+
+  if (array_key_exists('notes', $body)) {
+    $fields[] = "notes=?";
+    $params[] = $body['notes'];
+  }
 
   if (can_manage_all($role) && array_key_exists('staff_id', $body)) {
     $fields[] = "staff_id=?";
@@ -147,7 +190,9 @@ if ($method === 'PUT') {
   }
 
   if (!$fields) json_error('Nada para actualizar', 422);
-  if (strtotime($end_at) <= strtotime($start_at)) json_error('end_at debe ser mayor que start_at', 422);
+  if (strtotime($end_at) <= strtotime($start_at)) {
+    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
+  }
 
   $params[] = $id;
   $sql = "UPDATE appointments SET " . implode(',', $fields) . " WHERE id=?";

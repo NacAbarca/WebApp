@@ -9,6 +9,12 @@ createApp({
     const email = ref("");
     const password = ref("");
     const user = ref(null);
+    // ---- Views (submenu)
+    const view = ref("appointments"); // appointments | history | users | settings | audit
+    const isAdmin = computed(() => user.value?.role === "admin");
+    const canAudit = computed(() => isAdmin.value);
+    function go(v) { view.value = v; }
+
     const loading = ref(false);
     const errorMsg = ref("");
 
@@ -30,6 +36,7 @@ createApp({
           { method: "POST", body: { email: email.value, password: password.value } }
         );
         user.value = data.user;
+        view.value = "appointments";
         await loadUsersSafe();
         await loadAppointmentsSafe();
       } catch (e) {
@@ -45,6 +52,7 @@ createApp({
         await api({ path: "auth", action: "logout" }, { method: "POST", body: {} });
       } catch (e) {}
       user.value = null;
+      view.value = "appointments";
       users.value = [];
       appointments.value = [];
     }
@@ -55,7 +63,7 @@ createApp({
       id: null,
       name: "",
       email: "",
-      role: "user",
+      role: "seleccionar",
       status: "active",
       password: "",
     });
@@ -299,11 +307,14 @@ createApp({
       createAppointment,
       setAppointmentStatus,
       cancelAppointment,
+
+      view, go, isAdmin, canAudit,
+
     };
   },
 
   template: `
-  <div class="container py-5" style="max-width: 980px;">
+  <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 mb-1">WebApp Citas</h1>
@@ -312,7 +323,9 @@ createApp({
       <button v-if="user" class="btn btn-outline-danger" @click="logout">Cerrar sesión</button>
     </div>
 
-    <!-- Login -->
+    <!------------------------------>
+    <!-- start: Login form -->
+    <!------------------------------>
     <div v-if="!user" class="card shadow-sm" style="max-width:520px;">
       <div class="card-body">
         <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
@@ -332,197 +345,353 @@ createApp({
         </button>
       </div>
     </div>
+    <!------------------------------>
+    <!--- end: Login form --->
+    <!------------------------------>
 
     <!-- Panel -->
     <div v-else>
-      <div class="alert alert-success d-flex justify-content-between align-items-center">
-        <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
 
-        <!-- wrapper para tooltip aunque esté disabled -->
-        <span
-          class="d-inline-block"
-          tabindex="0"
-          data-bs-toggle="tooltip"
-          :data-bs-title="canManageUsers ? 'Crear usuario' : 'Solo admin puede gestionar usuarios'"
-        >
-          <button
-            class="btn btn-sm btn-success"
-            :disabled="!canManageUsers"
-            @click="openCreate"
-          >
-            + Nuevo usuario
+      <!-------------------->
+      <!-- start: Submenu -->
+      <!-------------------->
+      <ul class="nav nav-tabs mb-4">
+
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: view==='appointments' }" @click="go('appointments')">
+            📅 Citas
           </button>
-        </span>
-      </div>
+        </li>
 
-      <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: view==='history' }" @click="go('history')">
+            🕘 Historial
+          </button>
+        </li>
 
-      <!-- ✅ Usuarios: SOLO admin -->
+        <li class="nav-item" v-if="isAdmin">
+          <button class="nav-link" :class="{ active: view==='users' }" @click="go('users')">
+            👥 Usuarios
+          </button>
+        </li>
 
-      <div class="card shadow-sm mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Usuarios</div>
-          <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: view==='settings' }" @click="go('settings')">
+            ⚙️ Ajustes
+          </button>
+        </li>
+
+        <li class="nav-item" v-if="canAudit">
+          <button class="nav-link" :class="{ active: view==='audit' }" @click="go('audit')">
+            🧾 Auditoría
+          </button>
+        </li>
+      </ul>
+      <!-------------------->
+      <!--- end: Submenu --->
+      <!-------------------->
+
+      <!------------------------------>
+      <!-- start: ✅ Users is Admin -->
+      <!------------------------------>
+      <div v-if="view==='users' && isAdmin">
+        
+        <div class="alert alert-success d-flex justify-content-between align-items-center">
+          <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
+
+          <!-- wrapper para tooltip aunque esté disabled -->
+          <span
+            class="d-inline-block"
+            tabindex="0"
+            data-bs-toggle="tooltip"
+            :data-bs-title="canManageUsers ? 'Crear usuario' : 'Solo admin puede gestionar usuarios'"
+          >
+            <button
+              class="btn btn-sm btn-success"
+              :disabled="!canManageUsers"
+              @click="openCreate"
+            >
+              + Nuevo usuario
+            </button>
+          </span>
         </div>
 
-        <div class="table-responsive">
-          <table class="table table-striped mb-0">
-            <thead>
-              <tr>
-                <th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Status</th><th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="u in users" :key="u.id">
-                <td>{{ u.id }}</td>
-                <td>{{ u.name }}</td>
-                <td>{{ u.email }}</td>
-                <td><span class="badge text-bg-secondary">{{ u.role }}</span></td>
-                <td>
-                  <span class="badge" :class="u.status==='active' ? 'text-bg-success' : 'text-bg-warning'">
-                    {{ u.status }}
-                  </span>
-                </td>
 
-                <td class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
-                    Editar
-                  </button>
+        <!-- ✅ Usuarios: SOLO admin -->
 
-                  <button class="btn btn-sm btn-outline-warning" :disabled="!canManageUsers" @click="deactivate(u)">
-                    Desactivar
-                  </button>
+        <div class="card shadow-sm mb-4">
 
-                  <span
-                    class="d-inline-block"
-                    tabindex="0"
-                    data-bs-toggle="tooltip"
-                    :data-bs-title="canManageUsers ? 'Eliminar (soft)' : 'No autorizado por rol'"
-                  >
-                    <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deleteUser(u)">
-                      Eliminar
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="fw-semibold">Usuarios</div>
+          </div>
+
+          <div class="table-responsive">
+
+            <table class="table table-striped mb-0 table-hover">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Status</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in users" :key="u.id">
+                  <td>{{ u.id }}</td>
+                  <td>{{ u.name }}</td>
+                  <td>{{ u.email }}</td>
+                  <td><span class="badge text-bg-secondary">{{ u.role }}</span></td>
+                  <td>
+                    <span class="badge" :class="u.status==='active' ? 'text-bg-success' : 'text-bg-warning'">
+                      {{ u.status }}
+                    </span>
+                  </td>
+
+                  <td class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" :disabled="!canManageUsers" @click="openEdit(u)">
+                      Editar
                     </button>
-                  </span>
 
-                </td>
+                    <button class="btn btn-sm btn-outline-warning" :disabled="!canManageUsers" @click="deactivate(u)">
+                      Desactivar
+                    </button>
 
-              </tr>
-              <tr v-if="users.length===0">
-                <td colspan="6" class="text-muted p-4">Sin usuarios</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <span
+                      class="d-inline-block"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      :data-bs-title="canManageUsers ? 'Eliminar (soft)' : 'No autorizado por rol'"
+                    >
+                      <button class="btn btn-sm btn-outline-danger" :disabled="!canManageUsers" @click="deleteUser(u)">
+                        Eliminar
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="users.length===0">
+                  <td colspan="6" class="text-muted p-4">Sin usuarios</td>
+                </tr>
 
-      <!-- ✅ Citas -->
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h5 mb-0">Citas</h2>
-        <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
-      </div>
+              </tbody>
+            </table>
 
-      <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
+          </div>
 
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-              <label class="form-label">Usuario</label>
-              <select class="form-select" v-model="apptForm.user_id">
-                <option value="">Selecciona usuario</option>
-                <option v-for="u in selectableUsers" :key="u.id" :value="String(u.id)">
-                  {{ u.name }} ({{ u.email }})
-                </option>
-              </select>
-            </div>
-
-            <div class="col-md-3">
-              <label class="form-label">Start (YYYY-MM-DD HH:MM:SS)</label>
-              <input class="form-control" v-model="apptForm.start_at" placeholder="2026-01-15 10:00:00" />
-            </div>
-
-            <div class="col-md-3">
-              <label class="form-label">End (YYYY-MM-DD HH:MM:SS)</label>
-              <input class="form-control" v-model="apptForm.end_at" placeholder="2026-01-15 10:30:00" />
-            </div>
-
-            <div class="col-md-2">
-              <label class="form-label">Notas</label>
-              <input class="form-control" v-model="apptForm.notes" placeholder="Motivo..." />
-            </div>
-
-            <div class="col-md-1 d-grid">
-              <span
-                class="d-inline-block"
-                tabindex="0"
-                data-bs-toggle="tooltip"
-                :data-bs-title="createDisabledReason || 'Crear cita'"
-              >
-                <button class="btn btn-success w-100" :disabled="!canCreateAppointment" @click="createAppointment">
-                  Crear
-                </button>
-              </span>
-            </div>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-outline-secondary" @click="loadUsersSafe">Refrescar</button>
           </div>
         </div>
       </div>
+      <!------------------------------>
+      <!--- end: ✅ Users is Admin --->
+      <!------------------------------>
+      
+      <!--------------------->
+      <!-- start: ✅ Citas -->
+      <!--------------------->
 
-      <div class="card shadow-sm">
-        <div class="table-responsive">
-          <table class="table table-striped mb-0">
-            <thead>
-              <tr>
-                <th>ID</th><th>Usuario</th><th>Start</th><th>End</th><th>Status</th><th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="a in appointments" :key="a.id">
-                <td>{{ a.id }}</td>
-                <td>
-                  <div class="fw-semibold">{{ a.user_name }}</div>
-                  <div class="text-muted small">{{ a.user_email }}</div>
-                </td>
-                <td>{{ a.start_at }}</td>
-                <td>{{ a.end_at }}</td>
-                <td><span class="badge text-bg-info">{{ a.status }}</span></td>
-                <td class="d-flex flex-wrap gap-2">
-                  <button class="btn btn-sm btn-outline-primary" @click="setAppointmentStatus(a,'confirmed')">Confirmar</button>
-                  <button class="btn btn-sm btn-outline-success" @click="setAppointmentStatus(a,'done')">Done</button>
-                  <button class="btn btn-sm btn-outline-warning" @click="setAppointmentStatus(a,'no_show')">No-show</button>
-                  <button class="btn btn-sm btn-outline-danger" @click="cancelAppointment(a)">Cancelar</button>
-                </td>
-              </tr>
-              <tr v-if="appointments.length===0">
-                <td colspan="6" class="text-muted p-4">Sin citas</td>
-              </tr>
-            </tbody>
-          </table>
+      <div v-if="view==='appointments'">
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-header">
+
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="h5 mb-0">Gestion de citas</h5>
+              <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+            </div>
+            
+          </div>
+          <div class="card-body">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+
+                <label class="form-label">Usuario</label>
+
+                <select class="form-select" v-model="apptForm.user_id">
+                  <option value="">Selecciona usuario</option>
+                  <option v-for="u in selectableUsers" :key="u.id" :value="String(u.id)">
+                    {{ u.name }} ({{ u.email }})
+                  </option>
+                </select>
+
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">Start (YYYY-MM-DD HH:MM:SS)</label>
+                <input class="form-control" v-model="apptForm.start_at" placeholder="2026-01-15 10:00:00" />
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">End (YYYY-MM-DD HH:MM:SS)</label>
+                <input class="form-control" v-model="apptForm.end_at" placeholder="2026-01-15 10:30:00" />
+              </div>
+
+              <div class="col-md-2">
+                <label class="form-label">Notas</label>
+                <input class="form-control" v-model="apptForm.notes" placeholder="Motivo..." />
+              </div>
+
+              <div class="col-md-1 d-grid">
+                <span
+                  class="d-inline-block"
+                  tabindex="0"
+                  data-bs-toggle="tooltip"
+                  :data-bs-title="createDisabledReason || 'Crear cita'"
+                >
+                  <button class="btn btn-success w-100" :disabled="!canCreateAppointment" @click="createAppointment">
+                    Crear
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <hr>
+            <table class="table table-hover table-responsive">
+              <thead>
+                <tr>
+                  <th scope="col"> ID</th>
+                  <th scope="col"> Usuario</th>
+                  <th scope="col"> Start</th>
+                  <th scope="col"> End</th>
+                  <th scope="col"> Status</th>
+                  <th scope="col"> Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="a in appointments" :key="a.id">
+                  <td>{{ a.id }}</td>
+                  <td>
+                    <div class="fw-semibold">{{ a.user_name }}</div>
+                    <div class="text-muted small">{{ a.user_email }}</div>
+                  </td>
+                  <td>{{ a.start_at }}</td>
+                  <td>{{ a.end_at }}</td>
+                  <td><span class="badge text-bg-info">{{ a.status }}</span></td>
+                  <td class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary" @click="setAppointmentStatus(a,'confirmed')">Confirmar</button>
+                    <button class="btn btn-sm btn-outline-success" @click="setAppointmentStatus(a,'done')">Done</button>
+                    <button class="btn btn-sm btn-outline-warning" @click="setAppointmentStatus(a,'no_show')">No-show</button>
+                    <button class="btn btn-sm btn-outline-danger" @click="cancelAppointment(a)">Cancelar</button>
+                  </td>
+                </tr>
+                <tr v-if="appointments.length===0">
+                  <td colspan="6" class="text-muted p-4">Sin citas</td>
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+          <div class="card-footer">
+            <div>✅ Sesión activa — <b>{{ user.email }}</b> ({{ user.role }})</div>
+          </div>  
         </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h5 mb-0">Citas</h5>
+          <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+        </div>
+
+        <div v-if="apptError" class="alert alert-danger">{{ apptError }}</div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+
+            
+
+          </div>
+        </div>
+
+        <!---- Citas: tabla ---->
+      </div>
+      <!--------------------->
+      <!--- end: ✅ Citas --->
+      <!--------------------->
+
+      <div v-if="view==='history'" class="card shadow-sm mb-4">
+        <div class="card-header">
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-2">Historial</h2>
+            <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+          </div>
+          
+        </div>
+        <div class="card-body">
+          <div class="text-muted">Próximo sprint: tabla con cambios de estado por cita.</div>
+        </div>
+        <div class="card-footer">
+          footer
+        </div>  
       </div>
 
-      <!-- ✅ Modal Users (NECESARIO para que el botón funcione) -->
+      <div v-if="view==='settings'" class="card shadow-sm mb-4">
+        <div class="card-header">
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-2">Ajustes</h2>
+            <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+          </div>
+          
+        </div>
+        <div class="card-body">
+          <div class="text-muted">Próximo sprint: preferencias de fechas, filtros, etc.</div>
+        </div>
+        <div class="card-footer">
+          footer
+        </div>  
+      </div>
+
+      <div v-if="view==='audit' && canAudit" class="card shadow-sm mb-4">
+        <div class="card-header">
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-2">Auditoría</h2>
+            <button class="btn btn-sm btn-outline-secondary" @click="loadAppointments">Refrescar</button>
+          </div>
+          
+        </div>
+        <div class="card-body">
+          <div class="text-muted">Próximo sprint: eventos (login, cambios usuarios, cambios citas).</div>
+        </div>
+        <div class="card-footer">
+          footer
+        </div>  
+      </div>
+      
+
+     
+
+
+
+
+      <!-- ✅ Modal New Users (NECESARIO para que el botón funcione) -->
+
       <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
+
           <div class="modal-content">
+
             <div class="modal-header">
-              <h5 class="modal-title">{{ form.id ? 'Editar usuario' : 'Nuevo usuario' }}</h5>
+              <h5 class="modal-title"> {{ form.id ? 'Editar usuario' : 'Nuevo usuario' }} </h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body">
+
+              <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+
               <div class="mb-3">
-                <label class="form-label">Nombre</label>
-                <input class="form-control" v-model="form.name" />
+                <label class="form-label" for="userName">Nombre</label>
+                <input class="form-control" type="text" id="userName" placeholder="Ingresa con su nombre" v-model="form.name" />
               </div>
 
               <div class="mb-3" v-if="!form.id">
-                <label class="form-label">Email</label>
-                <input class="form-control" v-model="form.email" />
+                <label class="form-label" for="userEmail">Email</label>
+                <input class="form-control" type="email" id="userEmail" placeholder="Ingresa su email" v-model="form.email" />
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Rol</label>
-                <select class="form-select" v-model="form.role">
+                <label class="form-label">Cual es el rol del usuario</label>
+                <select class="form-select" aria-label="Selecciona un rol" v-model="form.role">
                   <option value="admin">admin</option>
                   <option value="staff">staff</option>
                   <option value="user">user</option>
@@ -530,16 +699,16 @@ createApp({
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Status</label>
-                <select class="form-select" v-model="form.status">
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
+                <label class="form-label">Cual es su estado</label>
+                <select class="form-select" aria-label="Selecciona un estado" v-model="form.status">
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
                 </select>
               </div>
 
               <div class="mb-3">
-                <label class="form-label">{{ form.id ? 'Nueva password (opcional)' : 'Password' }}</label>
-                <input class="form-control" type="password" v-model="form.password" />
+                <label class="form-label" for="userPassword">{{ form.id ? 'Nueva contraseña (opcional)' : 'Password' }}</label>
+                <input class="form-control" type="password" id="userPassword" v-model="form.password" />
               </div>
             </div>
 
@@ -550,6 +719,7 @@ createApp({
           </div>
         </div>
       </div>
+      <!-- ✅ End Modal New Users -->
 
     </div>
   </div>

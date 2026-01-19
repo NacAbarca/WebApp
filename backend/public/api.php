@@ -39,8 +39,10 @@ $routes = [
 
 ];
 
-if (!isset($routes[$path])) {
-  json_error('Not Found', ['path' => $path], 404);
+if (!isset($$routes[$path])) {
+  http_response_code(404);
+  echo "Not Found";
+  exit;
 }
 
 require $routes[$path];

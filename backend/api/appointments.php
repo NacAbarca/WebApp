@@ -60,15 +60,16 @@ function assert_interpreter(?int $id, PDO $pdo): ?int {
 if ($method === 'GET') {
   $sql = "
     SELECT
-      a.*,
-      u.name AS user_name,
-      u.email AS user_email,
-      i.name AS interpreter_name,
-      i.email AS interpreter_email
+      a.id, a.user_id, a.staff_id,
+      a.start_at, a.end_at, a.status, a.notes, a.created_at,
+      a.attention_type, a.sector_at, a.interpreter_id, a.created_by_staff_id, a.updated_at,
+      u.name AS user_name, u.email AS user_email,
+      s.name AS staff_name, s.email AS staff_email
     FROM appointments a
     JOIN users u ON u.id = a.user_id
-    LEFT JOIN users i ON i.id = a.interpreter_id
+    LEFT JOIN users s ON s.id = a.staff_id
   ";
+
 
   $params = [];
   if (!can_manage_all($role)) {
@@ -84,18 +85,46 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+  $body = request_json();
+
+  // básicos
+  $user_id  = isset($body['user_id']) ? (int)$body['user_id'] : $meId;
+  $staff_id = isset($body['staff_id']) ? (int)$body['staff_id'] : null;
+
+  $start_raw = (string)($body['start_at'] ?? '');
+  $end_raw   = (string)($body['end_at'] ?? '');
+  $notes     = $body['notes'] ?? null;
+
+  // normaliza fecha (usa tus helpers ya definidos en tu file)
+  $start_at = assert_dt(parse_dt($start_raw), 'start_at');
+  $end_at   = assert_dt(parse_dt($end_raw), 'end_at');
+  if (strtotime($end_at) <= strtotime($start_at)) {
+    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
+  }
+
+  // permisos
+  if (!can_manage_all($role) && $user_id !== $meId) {
+    json_error('Prohibido', 403);
+  }
+
+  // user existe
+  $chk = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
+  $chk->execute([$user_id]);
+  if (!$chk->fetch()) json_error('Usuario no existe', 404);
+
+  // ------- campos nuevos -------
   $attention_type = isset($body['attention_type']) ? trim((string)$body['attention_type']) : null;
   $sector_at      = isset($body['sector_at']) ? trim((string)$body['sector_at']) : null;
   $interpreter_id = isset($body['interpreter_id']) ? (int)$body['interpreter_id'] : null;
 
-  // Solo staff/admin puede setear datos clínicos/asignaciones
+  // Solo staff/admin setean clínicos/asignaciones
   if (!can_manage_all($role)) {
     if ($attention_type !== null || $sector_at !== null || $interpreter_id !== null) {
       json_error('Prohibido: solo staff/admin puede asignar tipo/sector/intérprete', 403);
     }
   }
 
-  // Si viene interpreter_id, validar que exista
+  // validar intérprete (si viene)
   if ($interpreter_id) {
     $chkI = $pdo->prepare("SELECT id, status FROM users WHERE id=? LIMIT 1");
     $chkI->execute([$interpreter_id]);
@@ -104,35 +133,18 @@ if ($method === 'POST') {
     if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
   }
 
-  // created_by_staff_id: lo fuerza el backend
+  // quién crea (solo staff/admin queda trazado)
   $created_by_staff_id = can_manage_all($role) ? $meId : null;
 
-  $body = request_json();
-
-  $user_id = (int)($body['user_id'] ?? $meId);
-  if (!can_manage_all($role) && $user_id !== $meId) {
-    json_error('Prohibido', null, 403);
-  }
-
-  $start_at = assert_dt($body['start_at'] ?? '', 'start_at');
-  $end_at   = assert_dt($body['end_at'] ?? '', 'end_at');
-
-  if (strtotime($end_at) <= strtotime($start_at)) {
-    json_error('Start debe ser ANTES que End', null, 422);
-  }
-
-  $interpreter_id = assert_interpreter(
-    isset($body['interpreter_id']) ? (int)$body['interpreter_id'] : null,
-    $pdo
-  );
-
-  $notes = $body['notes'] ?? null;
-  $created_by_staff_id = can_manage_all($role) ? $meId : null;
-
+  // INSERT con orden 1:1 columnas/values
   $ins = $pdo->prepare("
-    INSERT INTO appointments (user_id, staff_id, start_at, end_at, status, notes, attention_type, sector_at, interpreter_id, created_by_staff_id)
-    VALUES (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
+    INSERT INTO appointments
+      (user_id, staff_id, start_at, end_at, status, notes,
+       attention_type, sector_at, interpreter_id, created_by_staff_id)
+    VALUES
+      (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
   ");
+
   $ins->execute([
     $user_id,
     $staff_id,
@@ -145,13 +157,15 @@ if ($method === 'POST') {
     $created_by_staff_id
   ]);
 
-
   json_ok(['id' => (int)$pdo->lastInsertId()]);
 }
 
 if ($method === 'PUT') {
+  
+  $body = request_json();
 
-if (can_manage_all($role) && array_key_exists('attention_type', $body)) {
+  // nuevos campos (solo staff/admin)
+  if (can_manage_all($role) && array_key_exists('attention_type', $body)) {
     $fields[] = "attention_type=?";
     $params[] = trim((string)$body['attention_type']);
   }
@@ -169,12 +183,15 @@ if (can_manage_all($role) && array_key_exists('attention_type', $body)) {
       $i = $chkI->fetch();
       if (!$i) json_error('interpreter_id no existe', 404);
       if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
+
       $fields[] = "interpreter_id=?";
       $params[] = $iid;
     } else {
+      // Limpia el intérprete
       $fields[] = "interpreter_id=NULL";
     }
   }
+
 
   $id = (int)($_GET['id'] ?? 0);
   if ($id <= 0) json_error('id requerido', null, 422);

@@ -62,7 +62,7 @@ if ($method === 'GET') {
     SELECT
       a.id, a.user_id, a.id_paciente, a.start_at, a.end_at, a.status, a.notes,
       u.name AS user_name, u.email AS user_email,
-      p.run AS paciente_rut, p.nombres AS paciente_nombres,
+      p.id_paciente AS paciente_rut, p.nombres AS paciente_nombres,
       p.apellido_paterno AS paciente_apellido_paterno, p.apellido_materno AS paciente_apellido_materno
     FROM appointments a
     JOIN users u ON u.id = a.user_id

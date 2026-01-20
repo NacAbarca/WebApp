@@ -163,8 +163,6 @@ createApp({
       password: "",
     });
 
-    let modal = null;
-
     const canManageUsers = computed(() => user.value?.role === "admin");
 
     async function loadUsersSafe() {
@@ -181,13 +179,13 @@ createApp({
     function openCreate() {
       if (!canManageUsers.value) return;
       form.value = { id: null, name: "", email: "", role: "user", status: "active", password: "" };
-      modal?.show();
+      userModal?.show();
     }
 
     function openEdit(u) {
       if (!canManageUsers.value) return;
       form.value = { id: u.id, name: u.name, email: u.email, role: u.role, status: u.status, password: "" };
-      modal?.show();
+      userModal?.show();
     }
 
     async function saveUser() {
@@ -203,7 +201,7 @@ createApp({
           await api({ path: "users", id: String(form.value.id) }, { method: "PUT", body: form.value });
         }
 
-        modal?.hide();
+        userModal?.hide();
         await loadUsersSafe();
       } catch (e) {
         errorMsg.value = e.message;
@@ -392,11 +390,7 @@ createApp({
     }
 
     function openCreatePatient() {
-      // si quieres: permitir admin/staff (mejor que admin-only)
       if (!user.value || !["admin", "staff"].includes(user.value.role)) return;
-
-      // aquí crea un objeto patientForm real (recomendado) en vez de reutilizar form de users
-      // patientForm.value = { ...defaults }
       patientModal?.show();
     }
 
@@ -546,32 +540,29 @@ createApp({
             <!-- Sidebar -->
             <div class="col col-2">
                       
-                SideBar (Pendiente)
+                SideBar (Pendiente)                
+                <div class="d-grid gap-2">
 
-            <button
-            class="btn btn-sm btn-success"
-            :disabled="!canManageUsers"
-            @click="openCreate"
-            >
-              + Nuevo usuario
-            </button>
+                <button class="btn btn-sm btn-success" :disabled="!canManageUsers" @click="openCreate">
+                  + Nuevo usuario
+                </button>
 
-            <div class="d-grid gap-2">
-  <button type="button" class="btn btn-sm btn-primary" @click="openCreatePatient">
-    + Nuevo paciente
-  </button>
+                <button type="button" class="btn btn-sm btn-primary" @click="openCreatePatient">
+                  + Nuevo paciente
+                </button>
 
-  <button type="button" class="btn btn-sm btn-success" @click="openCreateAppointmentModal">
-    + Nueva cita
-  </button>
-</div>
+                <button type="button" class="btn btn-sm btn-success" @click="openCreateAppointmentModal">
+                  + Nueva cita
+                </button>
+
+              </div>
 
 
-          </div>
+            </div>
 
-                      <!-- end: SideBar -->
+            <!-- end: SideBar -->
 
-                      <!-- Main content -->
+            <!-- Main content -->
             <div class="col col-10">
 
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -783,7 +774,11 @@ createApp({
 
                 <div class="d-flex justify-content-between align-items-center">
                   <h2 class="h5 mb-2">Gestion de usuarios</h2>
-                  <button class="btn btn-sm btn-outline-secondary" @click="">Nueva cuenta</button>
+
+                  <button class="btn btn-sm btn-primary btn-outline-secondary" :disabled="!canManageUsers" @click="openCreate">
+                  + Nuevo usuario
+                  </button>
+                  
                 </div>
                 
               </div>
@@ -910,31 +905,31 @@ createApp({
                                     <h2 class="h6 mb-3">Identificación</h2>
 
                                     <div class="row g-3">
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12 col-md-12">
                                         <label for="id" class="form-label">ID *</label>
                                         <input type="text" class="form-control" id="id" name="Id" required />
                                         <div class="invalid-feedback">Ingresa el ID.</div>
                                       </div>
 
-                                      <div class="col-12 col-md-8">
+                                      <div class="col-12 col-md-12">
                                         <label for="usuario" class="form-label">Usuario *</label>
                                         <input type="text" class="form-control" id="usuario" name="Usuario" required />
                                         <div class="invalid-feedback">Ingresa el nombre de usuario.</div>
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12 col-md-12">
                                         <label for="nombres" class="form-label">Nombres *</label>
                                         <input type="text" class="form-control" id="nombres" name="Nombres" required />
                                         <div class="invalid-feedback">Ingresa los nombres.</div>
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12 col-md-12">
                                         <label for="apellidoPaterno" class="form-label">Apellido Paterno *</label>
                                         <input type="text" class="form-control" id="apellidoPaterno" name="Apellido Paterno" required />
                                         <div class="invalid-feedback">Ingresa el apellido paterno.</div>
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12 col-md-12">
                                         <label for="apellidoMaterno" class="form-label">Apellido Materno</label>
                                         <input type="text" class="form-control" id="apellidoMaterno" name="Apellido Materno" />
                                       </div>
@@ -946,13 +941,13 @@ createApp({
                                     <h2 class="h6 mb-3">Contacto</h2>
 
                                     <div class="row g-3">
-                                      <div class="col-12 col-md-6">
+                                      <div class="col-12 col-md-12">
                                         <label for="correo" class="form-label">Correo</label>
                                         <input type="email" class="form-control" id="correo" name="Correo" placeholder="correo@ejemplo.cl" />
                                         <div class="invalid-feedback">Correo no válido.</div>
                                       </div>
 
-                                      <div class="col-12 col-md-6">
+                                      <div class="col-12 col-md-12">
                                         <label for="celular" class="form-label">Celular</label>
                                         <input type="tel" class="form-control" id="celular" name="Celular" placeholder="+56 9 1234 5678" />
                                       </div>
@@ -964,17 +959,17 @@ createApp({
                                     <h2 class="h6 mb-3">Datos personales</h2>
 
                                     <div class="row g-3">
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12 col-md-12">
                                         <label for="fechaNacimiento" class="form-label">Fecha de Nacimiento</label>
                                         <input type="date" class="form-control" id="fechaNacimiento" name="Fecha De Nacimiento" />
                                       </div>
 
-                                      <div class="col-12 col-md-2">
+                                      <div class="col-12">
                                         <label for="edad" class="form-label">Edad</label>
                                         <input type="number" class="form-control" id="edad" name="Edad" min="0" max="130" />
                                       </div>
 
-                                      <div class="col-12 col-md-6">
+                                      <div class="col-12">
                                         <label for="genero" class="form-label">Género</label>
                                         <select class="form-select" id="genero" name="Genero">
                                           <option value="" selected>Seleccionar...</option>
@@ -998,17 +993,17 @@ createApp({
                                         <input type="text" class="form-control" id="direccion" name="Dirección" />
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12">
                                         <label for="region" class="form-label">Región</label>
                                         <input type="text" class="form-control" id="region" name="Región" />
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12">
                                         <label for="provincia" class="form-label">Provincia</label>
                                         <input type="text" class="form-control" id="provincia" name="Provincia" />
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12">
                                         <label for="comuna" class="form-label">Comuna</label>
                                         <input type="text" class="form-control" id="comuna" name="Comuna" />
                                       </div>
@@ -1019,13 +1014,13 @@ createApp({
                                     <!-- Salud -->
                                     <h2 class="h6 mb-3">Salud</h2>
 
-                                    <div class="row g-3">
-                                      <div class="col-12 col-md-4">
+                                    <div class="row g-31">
+                                      <div class="col-12">
                                         <label for="discapacidad" class="form-label">% de Discapacidad</label>
                                         <input type="number" class="form-control" id="discapacidad" name="% De Discapacidad" min="0" max="100" step="1" />
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12">
                                         <label for="condicion" class="form-label">Condición</label>
                                         <select class="form-select" id="condicion" name="Condición">
                                           <option value="" selected>Seleccionar...</option>
@@ -1036,7 +1031,7 @@ createApp({
                                         </select>
                                       </div>
 
-                                      <div class="col-12 col-md-4">
+                                      <div class="col-12">
                                         <label for="nacionalidad" class="form-label">Nacionalidad</label>
                                         <input type="text" class="form-control" id="nacionalidad" name="Nacionalidad" placeholder="Chilena, Peruana, ..." />
                                       </div>
@@ -1150,24 +1145,24 @@ createApp({
 
                                         <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteCreate"> Creación </label>
                                             <input class="form-control" type="text" id="pacienteCreate" placeholder="Ej: 19-01-2026" aria-label="Ej: 19-01-2026"  disabled v-model="form.create" >
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteUpdate"> actualización </label>
                                             <input class="form-control" type="text" id="pacienteUpdate" placeholder="Ej: 19-01-2026" aria-label="Ej: 19-01-2026" readonly v-model="form.update">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteRUT"> RUT </label>
                                             <input class="form-control" type="text" id="pacienteRUT" placeholder="Ingrese el RUT del paciente" v-model="form.rut">
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteEstado"> Estado </label>
 
                                             <div class="form-control">
@@ -1181,7 +1176,7 @@ createApp({
                                             </div>
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteInstrumento"> Instrumento </label>
                                             <select class="form-select" id="pacienteInstrumento" aria-label="Seleccionar una prestacion" v-model="form.instrumento">
@@ -1193,7 +1188,7 @@ createApp({
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteRazonCita"> Razon cita </label>
                                             <select class="form-select" id="pacienteRazonCita" aria-label="Default select example" v-model="form.razonCita">
@@ -1213,28 +1208,28 @@ createApp({
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteFechaCita"> Fecha de cita </label>
                                             <input class="form-control" type="text" id="pacienteFechaCita" v-model="form.fechaCita">
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteHoraInicio"> Hora inicio </label>
                                             <input class="form-control" type="text" id="pacienteHoraInicio" v-model="form.horaInicio">
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteHoraTermino"> Hora termino </label>
                                             <input class="form-control" type="text" id="pacienteHoraTermino" v-model="form.horaTermino">
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label class="form-label" for="pacienteSector"> Sector </label>
                                             <select class="form-select" id="pacienteSector" aria-label="asignado a sector" v-model="form.sector">
@@ -1253,14 +1248,14 @@ createApp({
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
 
                                             <label for="pacienteObservacion" class="form-label">Observación</label>
                                             <textarea class="form-control" id="pacienteObservacion" rows="3" v-model="form.observacion"></textarea>
 
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteEstablecimiento"> Establecimiento </label>
                                             <input class="form-control" type="text" id="pacienteEstablecimiento" v-model="form.establecimiento">
 
@@ -1279,32 +1274,32 @@ createApp({
                                             </select>
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteCitaCreadaPor"> Cita creada por </label>
                                             <input class="form-control" type="text" id="pacienteCitaCreadaPor" placeholder="Ej: Nac Abarca" aria-label="Ej: 19-01-2026" readonly v-model="form.citaCreadaPor">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteTipoAtencion"> Tipo de atención </label>
                                             <input class="form-control" type="text" id="pacienteTipoAtencion" v-model="form.tipoAtencion">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteEspecialidad"> Especialidad </label>
                                             <input class="form-control" type="text" id="pacienteEspecialidad" v-model="form.especialidad">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteDato1"> dato </label>
                                             <input class="form-control" type="text" id="pacienteDato1" v-model="form.dato1">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteDato2"> dato </label>
                                             <input class="form-control" type="text" id="pacienteDato2" v-model="form.dato2">
                                         </div>
 
-                                        <div class="form-group mb-3">
+                                        <div class="form-group mb-12">
                                             <label class="form-label" for="pacienteDato3"> dato </label>
                                             <input class="form-control" type="text" id="pacienteDato3" v-model="form.dato3">
                                         </div>

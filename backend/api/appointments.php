@@ -60,14 +60,13 @@ function assert_interpreter(?int $id, PDO $pdo): ?int {
 if ($method === 'GET') {
   $sql = "
     SELECT
-      a.id, a.user_id, a.staff_id,
-      a.start_at, a.end_at, a.status, a.notes, a.created_at,
-      a.attention_type, a.sector_at, a.interpreter_id, a.created_by_staff_id, a.updated_at,
+      a.id, a.user_id, a.id_paciente, a.start_at, a.end_at, a.status, a.notes,
       u.name AS user_name, u.email AS user_email,
-      s.name AS staff_name, s.email AS staff_email
+      p.run AS paciente_rut, p.nombres AS paciente_nombres,
+      p.apellido_paterno AS paciente_apellido_paterno, p.apellido_materno AS paciente_apellido_materno
     FROM appointments a
     JOIN users u ON u.id = a.user_id
-    LEFT JOIN users s ON s.id = a.staff_id
+    LEFT JOIN pacientes p ON p.id_paciente = a.id_paciente
   ";
 
 
@@ -85,9 +84,11 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+
+  // 1️⃣ PRIMERO: leer JSON
   $body = request_json();
 
-  // básicos
+  // 2️⃣ Datos base
   $user_id  = isset($body['user_id']) ? (int)$body['user_id'] : $meId;
   $staff_id = isset($body['staff_id']) ? (int)$body['staff_id'] : null;
 
@@ -95,57 +96,44 @@ if ($method === 'POST') {
   $end_raw   = (string)($body['end_at'] ?? '');
   $notes     = $body['notes'] ?? null;
 
-  // normaliza fecha (usa tus helpers ya definidos en tu file)
   $start_at = assert_dt(parse_dt($start_raw), 'start_at');
   $end_at   = assert_dt(parse_dt($end_raw), 'end_at');
+
   if (strtotime($end_at) <= strtotime($start_at)) {
-    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
+    json_error('Start debe ser ANTES que End', 422);
   }
 
-  // permisos
-  if (!can_manage_all($role) && $user_id !== $meId) {
-    json_error('Prohibido', 403);
-  }
-
-  // user existe
-  $chk = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
-  $chk->execute([$user_id]);
-  if (!$chk->fetch()) json_error('Usuario no existe', 404);
-
-  // ------- campos nuevos -------
+  // 3️⃣ Campos clínicos / atención (solo staff/admin)
   $attention_type = isset($body['attention_type']) ? trim((string)$body['attention_type']) : null;
   $sector_at      = isset($body['sector_at']) ? trim((string)$body['sector_at']) : null;
   $interpreter_id = isset($body['interpreter_id']) ? (int)$body['interpreter_id'] : null;
 
-  // Solo staff/admin setean clínicos/asignaciones
   if (!can_manage_all($role)) {
-    if ($attention_type !== null || $sector_at !== null || $interpreter_id !== null) {
-      json_error('Prohibido: solo staff/admin puede asignar tipo/sector/intérprete', 403);
+    if ($attention_type || $sector_at || $interpreter_id) {
+      json_error('Solo staff/admin puede asignar atención/intérprete', 403);
     }
   }
 
-  // validar intérprete (si viene)
+  // 4️⃣ Validar intérprete
   if ($interpreter_id) {
-    $chkI = $pdo->prepare("SELECT id, status FROM users WHERE id=? LIMIT 1");
-    $chkI->execute([$interpreter_id]);
-    $i = $chkI->fetch();
-    if (!$i) json_error('interpreter_id no existe', 404);
-    if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
+    $chk = $pdo->prepare("SELECT id, status FROM users WHERE id=?");
+    $chk->execute([$interpreter_id]);
+    $i = $chk->fetch();
+    if (!$i) json_error('Intérprete no existe', 404);
+    if (($i['status'] ?? '') !== 'active') json_error('Intérprete inactivo', 422);
   }
 
-  // quién crea (solo staff/admin queda trazado)
   $created_by_staff_id = can_manage_all($role) ? $meId : null;
 
-  // INSERT con orden 1:1 columnas/values
-  $ins = $pdo->prepare("
+  // 5️⃣ INSERT FINAL
+  $stmt = $pdo->prepare("
     INSERT INTO appointments
-      (user_id, staff_id, start_at, end_at, status, notes,
-       attention_type, sector_at, interpreter_id, created_by_staff_id)
-    VALUES
-      (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
+    (user_id, staff_id, start_at, end_at, status, notes,
+     attention_type, sector_at, interpreter_id, created_by_staff_id)
+    VALUES (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
   ");
 
-  $ins->execute([
+  $stmt->execute([
     $user_id,
     $staff_id,
     $start_at,
@@ -153,15 +141,16 @@ if ($method === 'POST') {
     $notes,
     $attention_type,
     $sector_at,
-    $interpreter_id ?: null,
+    $interpreter_id,
     $created_by_staff_id
   ]);
 
   json_ok(['id' => (int)$pdo->lastInsertId()]);
 }
 
+
 if ($method === 'PUT') {
-  
+
   $body = request_json();
 
   // nuevos campos (solo staff/admin)

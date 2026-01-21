@@ -3,3 +3,6 @@ echo ".env
 **/.DS_Store" > .gitignore
 
 .DS_Store
+
+/html/
+/sql/

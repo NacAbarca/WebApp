@@ -59,20 +59,44 @@ if ($method === 'POST' && $action === 'login') {
   json_ok(['user' => $_SESSION['user']]);
 }
 
-if ($method === 'POST' && $action === 'logout') {
-  $_SESSION = [];
-  if (ini_get("session.use_cookies")) {
-    $p = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000, $p["path"], $p["domain"], $p["secure"], $p["httponly"]);
-  }
-  session_destroy();
-  json_ok(['logout' => true]);
+if ($method === 'GET' && $action === 'me') {
+    if (!isset($_SESSION['user'])) {
+        json_ok(['user' => null]);
+    }
+    json_ok(['user' => $_SESSION['user']]);
 }
 
-if ($method === 'GET' && $action === 'me') {
-  $me = $_SESSION['user'] ?? null;
-  if (!$me) json_error('No autorizado', 401);
-  json_ok(['user' => $me]);
+if ($method === 'POST' && $action === 'login') {
+    $body = request_json();
+    $email = $body['email'] ?? '';
+    $password = $body['password'] ?? '';
+
+    if (!$email || !$password) {
+        json_error('Email y password requeridos', 422);
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email=? LIMIT 1");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if (!$user || !password_verify($password, $user['password'])) {
+        json_error('Credenciales inválidas', 401);
+    }
+
+    if ($user['status'] !== 'active') {
+        json_error('Usuario inactivo', 403);
+    }
+
+    unset($user['password']);
+    $_SESSION['user'] = $user;
+
+    json_ok(['user' => $user]);
 }
+
+if ($method === 'POST' && $action === 'logout') {
+    session_destroy();
+    json_ok(true);
+}
+
 
 json_error('Not Found', 404);

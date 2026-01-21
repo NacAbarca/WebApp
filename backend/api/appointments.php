@@ -4,94 +4,91 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/middleware.php';
 
-$pdo = db();
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 require_auth();
 
-$me = $_SESSION['user'];
-$role = $me['role'] ?? 'user';
-$meId = (int)($me['id'] ?? 0);
+$pdo = db();
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-// ---- Datetime parser (flexible) ----
-// Acepta varios formatos y normaliza a "Y-m-d H:i:s" para MySQL
-function parse_dt_mysql(string $raw): ?string {
+$me = $_SESSION['user'];
+$role = $me['role'];
+$meId = (int)$me['id'];
+
+function can_manage_all(string $role): bool {
+  return in_array($role, ['admin','staff'], true);
+}
+
+function parse_dt(string $raw): ?string {
   $raw = trim($raw);
   if ($raw === '') return null;
 
   $formats = [
     'd-m-Y H:i',
     'd-m-Y H:i:s',
-    'Y-m-d\TH:i',
-    'Y-m-d\TH:i:s',
     'Y-m-d H:i',
     'Y-m-d H:i:s',
+    'Y-m-d\TH:i',
+    'Y-m-d\TH:i:s'
   ];
 
-  foreach ($formats as $fmt) {
-    $dt = DateTimeImmutable::createFromFormat($fmt, $raw);
-    if ($dt instanceof DateTimeImmutable) {
-      $err = DateTimeImmutable::getLastErrors();
-      if ($err && (($err['warning_count'] ?? 0) > 0 || ($err['error_count'] ?? 0) > 0)) continue;
-      return $dt->format('Y-m-d H:i:s');
-    }
+  foreach ($formats as $f) {
+    $dt = DateTime::createFromFormat($f, $raw);
+    if ($dt) return $dt->format('Y-m-d H:i:s');
   }
   return null;
 }
 
-function assert_dt_or_422(?string $dt, string $field): string {
-  if (!$dt) {
-    json_error("Formato inválido en $field. Usa d-m-Y H:i (ej: 29-12-2026 10:00)", 422);
-  }
+function assert_dt(string $raw, string $field): string {
+  $dt = parse_dt($raw);
+  if (!$dt) json_error("Formato inválido en $field (d-m-Y H:i)", null, 422);
   return $dt;
 }
 
-function can_manage_all(string $role): bool {
-  return in_array($role, ['admin','staff'], true);
-}
-function valid_status(string $s): bool {
-  return in_array($s, ['pending','confirmed','cancelled','no_show','done'], true);
+function assert_interpreter(?int $id, PDO $pdo): ?int {
+  if (!$id) return null;
+  $q = $pdo->prepare("
+    SELECT id FROM users
+    WHERE id=? AND role='interpreter' AND status='active'
+    LIMIT 1
+  ");
+  $q->execute([$id]);
+  if (!$q->fetch()) {
+    json_error('Intérprete inválido o inactivo', null, 422);
+  }
+  return $id;
 }
 
 if ($method === 'GET') {
-  $from = $_GET['from'] ?? null; // YYYY-MM-DD
-  $to   = $_GET['to'] ?? null;   // YYYY-MM-DD
-
-  $where = [];
-  $params = [];
-
-  if ($from) { $where[] = "a.start_at >= ?"; $params[] = $from . " 00:00:00"; }
-  if ($to)   { $where[] = "a.start_at <= ?"; $params[] = $to . " 23:59:59"; }
-
-  if (!can_manage_all($role)) {
-    $where[] = "a.user_id = ?";
-    $params[] = $meId;
-  } else {
-    if (isset($_GET['user_id'])) {
-      $where[] = "a.user_id = ?";
-      $params[] = (int)$_GET['user_id'];
-    }
-  }
-
   $sql = "
     SELECT
-      a.id, a.user_id, a.staff_id, a.start_at, a.end_at, a.status, a.notes, a.created_at,
+      a.id, a.user_id, a.id_paciente, a.start_at, a.end_at, a.status, a.notes,
       u.name AS user_name, u.email AS user_email,
-      s.name AS staff_name, s.email AS staff_email
+      p.id_paciente AS paciente_rut, p.nombres AS paciente_nombres,
+      p.apellido_paterno AS paciente_apellido_paterno, p.apellido_materno AS paciente_apellido_materno
     FROM appointments a
     JOIN users u ON u.id = a.user_id
-    LEFT JOIN users s ON s.id = a.staff_id
+    LEFT JOIN pacientes p ON p.id_paciente = a.id_paciente
   ";
-  if ($where) $sql .= " WHERE " . implode(" AND ", $where);
-  $sql .= " ORDER BY a.created_at DESC";
 
-  $stmt = $pdo->prepare($sql);
-  $stmt->execute($params);
-  json_ok(['appointments' => $stmt->fetchAll()]);
+
+  $params = [];
+  if (!can_manage_all($role)) {
+    $sql .= " WHERE a.user_id = ?";
+    $params[] = $meId;
+  }
+
+  $sql .= " ORDER BY a.start_at ASC";
+
+  $st = $pdo->prepare($sql);
+  $st->execute($params);
+  json_ok(['appointments' => $st->fetchAll()]);
 }
 
 if ($method === 'POST') {
+
+  // 1️⃣ PRIMERO: leer JSON
   $body = request_json();
 
+  // 2️⃣ Datos base
   $user_id  = isset($body['user_id']) ? (int)$body['user_id'] : $meId;
   $staff_id = isset($body['staff_id']) ? (int)$body['staff_id'] : null;
 
@@ -99,100 +96,112 @@ if ($method === 'POST') {
   $end_raw   = (string)($body['end_at'] ?? '');
   $notes     = $body['notes'] ?? null;
 
-  $start_at = assert_dt_or_422(parse_dt_mysql($start_raw), 'start_at');
-  $end_at   = assert_dt_or_422(parse_dt_mysql($end_raw), 'end_at');
+  $start_at = assert_dt(parse_dt($start_raw), 'start_at');
+  $end_at   = assert_dt(parse_dt($end_raw), 'end_at');
 
-  // permisos: user solo para sí mismo; staff/admin puede para todos
-  if (!can_manage_all($role) && $user_id !== $meId) json_error('Prohibido', 403);
-
-  // reglas QA: start < end (no igual, no invertido)
   if (strtotime($end_at) <= strtotime($start_at)) {
-    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
+    json_error('Start debe ser ANTES que End', 422);
   }
 
-  $chk = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
-  $chk->execute([$user_id]);
-  if (!$chk->fetch()) json_error('user_id no existe', 404);
+  // 3️⃣ Campos clínicos / atención (solo staff/admin)
+  $attention_type = isset($body['attention_type']) ? trim((string)$body['attention_type']) : null;
+  $sector_at      = isset($body['sector_at']) ? trim((string)$body['sector_at']) : null;
+  $interpreter_id = isset($body['interpreter_id']) ? (int)$body['interpreter_id'] : null;
 
-  if ($staff_id) {
-    $chk2 = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
-    $chk2->execute([$staff_id]);
-    if (!$chk2->fetch()) json_error('staff_id no existe', 404);
+  if (!can_manage_all($role)) {
+    if ($attention_type || $sector_at || $interpreter_id) {
+      json_error('Solo staff/admin puede asignar atención/intérprete', 403);
+    }
   }
 
-  $status = 'pending';
+  // 4️⃣ Validar intérprete
+  if ($interpreter_id) {
+    $chk = $pdo->prepare("SELECT id, status FROM users WHERE id=?");
+    $chk->execute([$interpreter_id]);
+    $i = $chk->fetch();
+    if (!$i) json_error('Intérprete no existe', 404);
+    if (($i['status'] ?? '') !== 'active') json_error('Intérprete inactivo', 422);
+  }
 
-  $ins = $pdo->prepare("
-    INSERT INTO appointments (user_id, staff_id, start_at, end_at, status, notes)
-    VALUES (?,?,?,?,?,?)
+  $created_by_staff_id = can_manage_all($role) ? $meId : null;
+
+  // 5️⃣ INSERT FINAL
+  $stmt = $pdo->prepare("
+    INSERT INTO appointments
+    (user_id, staff_id, start_at, end_at, status, notes,
+     attention_type, sector_at, interpreter_id, created_by_staff_id)
+    VALUES (?,?,?,?, 'pending', ?, ?, ?, ?, ?)
   ");
-  $ins->execute([$user_id, $staff_id, $start_at, $end_at, $status, $notes]);
 
-  $id = (int)$pdo->lastInsertId();
+  $stmt->execute([
+    $user_id,
+    $staff_id,
+    $start_at,
+    $end_at,
+    $notes,
+    $attention_type,
+    $sector_at,
+    $interpreter_id,
+    $created_by_staff_id
+  ]);
 
-  $h = $pdo->prepare("INSERT INTO appointment_status_history (appointment_id, status, changed_by) VALUES (?,?,?)");
-  $h->execute([$id, $status, $meId]);
-
-  json_ok(['id' => $id]);
+  json_ok(['id' => (int)$pdo->lastInsertId()]);
 }
 
+
 if ($method === 'PUT') {
-  $id = (int)($_GET['id'] ?? 0);
-  if ($id <= 0) json_error('id requerido', 422);
 
   $body = request_json();
 
-  $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id=? LIMIT 1");
-  $stmt->execute([$id]);
-  $a = $stmt->fetch();
-  if (!$a) json_error('Cita no existe', 404);
+  // nuevos campos (solo staff/admin)
+  if (can_manage_all($role) && array_key_exists('attention_type', $body)) {
+    $fields[] = "attention_type=?";
+    $params[] = trim((string)$body['attention_type']);
+  }
 
-  if (!can_manage_all($role) && (int)$a['user_id'] !== $meId) json_error('Prohibido', 403);
+  if (can_manage_all($role) && array_key_exists('sector_at', $body)) {
+    $fields[] = "sector_at=?";
+    $params[] = trim((string)$body['sector_at']);
+  }
+
+  if (can_manage_all($role) && array_key_exists('interpreter_id', $body)) {
+    $iid = (int)$body['interpreter_id'];
+    if ($iid > 0) {
+      $chkI = $pdo->prepare("SELECT id, status FROM users WHERE id=? LIMIT 1");
+      $chkI->execute([$iid]);
+      $i = $chkI->fetch();
+      if (!$i) json_error('interpreter_id no existe', 404);
+      if (($i['status'] ?? '') !== 'active') json_error('Intérprete está inactivo', 422);
+
+      $fields[] = "interpreter_id=?";
+      $params[] = $iid;
+    } else {
+      // Limpia el intérprete
+      $fields[] = "interpreter_id=NULL";
+    }
+  }
+
+
+  $id = (int)($_GET['id'] ?? 0);
+  if ($id <= 0) json_error('id requerido', null, 422);
+
+  $body = request_json();
 
   $fields = [];
   $params = [];
 
-  $start_at = (string)$a['start_at'];
-  $end_at   = (string)$a['end_at'];
-
-  if (array_key_exists('start_at', $body)) {
-    $start_at = assert_dt_or_422(parse_dt_mysql((string)$body['start_at']), 'start_at');
-    $fields[] = "start_at=?";
-    $params[] = $start_at;
+  if (isset($body['interpreter_id'])) {
+    $iid = assert_interpreter((int)$body['interpreter_id'], $pdo);
+    $fields[] = "interpreter_id=?";
+    $params[] = $iid;
   }
 
-  if (array_key_exists('end_at', $body)) {
-    $end_at = assert_dt_or_422(parse_dt_mysql((string)$body['end_at']), 'end_at');
-    $fields[] = "end_at=?";
-    $params[] = $end_at;
-  }
-
-  if (array_key_exists('notes', $body)) {
+  if (isset($body['notes'])) {
     $fields[] = "notes=?";
     $params[] = $body['notes'];
   }
 
-  if (can_manage_all($role) && array_key_exists('staff_id', $body)) {
-    $fields[] = "staff_id=?";
-    $params[] = $body['staff_id'] ? (int)$body['staff_id'] : null;
-  }
-
-  if (array_key_exists('status', $body)) {
-    $newStatus = (string)$body['status'];
-    if (!valid_status($newStatus)) json_error('status inválido', 422);
-    if ($newStatus !== $a['status']) {
-      $fields[] = "status=?";
-      $params[] = $newStatus;
-
-      $h = $pdo->prepare("INSERT INTO appointment_status_history (appointment_id, status, changed_by) VALUES (?,?,?)");
-      $h->execute([$id, $newStatus, $meId]);
-    }
-  }
-
-  if (!$fields) json_error('Nada para actualizar', 422);
-  if (strtotime($end_at) <= strtotime($start_at)) {
-    json_error('Start debe ser ANTES que End (no puede ser igual ni después).', 422);
-  }
+  if (!$fields) json_error('Nada para actualizar', null, 422);
 
   $params[] = $id;
   $sql = "UPDATE appointments SET " . implode(',', $fields) . " WHERE id=?";
@@ -202,24 +211,4 @@ if ($method === 'PUT') {
   json_ok(['updated' => true]);
 }
 
-if ($method === 'DELETE') {
-  $id = (int)($_GET['id'] ?? 0);
-  if ($id <= 0) json_error('id requerido', 422);
-
-  $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id=? LIMIT 1");
-  $stmt->execute([$id]);
-  $a = $stmt->fetch();
-  if (!$a) json_error('Cita no existe', 404);
-
-  if (!can_manage_all($role) && (int)$a['user_id'] !== $meId) json_error('Prohibido', 403);
-
-  $upd = $pdo->prepare("UPDATE appointments SET status='cancelled' WHERE id=?");
-  $upd->execute([$id]);
-
-  $h = $pdo->prepare("INSERT INTO appointment_status_history (appointment_id, status, changed_by) VALUES (?,?,?)");
-  $h->execute([$id, 'cancelled', $meId]);
-
-  json_ok(['deleted' => true]);
-}
-
-json_error('Method Not Allowed', 405);
+json_error('Method Not Allowed', null, 405);

@@ -1,0 +1,185 @@
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-hidden="true">
+
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                    <h5 class="modal-title"> {{ form.id ? 'Editar paciente' : 'Nuevo paciente' }} </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteCreate"> Creación </label>
+                    <input class="form-control" type="text" id="pacienteCreate" placeholder="Ej: 19-01-2026" aria-label="Ej: 19-01-2026"  disabled v-model="form.create" >
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteUpdate"> actualización </label>
+                    <input class="form-control" type="text" id="pacienteUpdate" placeholder="Ej: 19-01-2026" aria-label="Ej: 19-01-2026" readonly v-model="form.update">
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteRUT"> RUT </label>
+                    <input class="form-control" type="text" id="pacienteRUT" placeholder="Ingrese el RUT del paciente" v-model="form.rut">
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteEstado"> Estado </label>
+
+                    <div class="form-control">
+
+                        <input type="radio" class="btn-check" name="options-outlined" id="success-outlined" autocomplete="off" checked v-model="form.estado">
+                        <label class="btn btn-outline-success" for="success-outlined">Activo</label>
+
+                        <input type="radio" class="btn-check" name="options-outlined" id="danger-outlined" autocomplete="off" v-model="form.estado">
+                        <label class="btn btn-outline-danger" for="danger-outlined">Inactivo</label>
+                    
+                    </div>
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteInstrumento"> Instrumento </label>
+                    <select class="form-select" id="pacienteInstrumento" aria-label="Seleccionar una prestacion" v-model="form.instrumento">
+                        <option selected>Seleccionar una prestacion</option>
+                        <option value="1">Médico</option>
+                        <option value="2">Matróna</option>
+                        <option value="3">Psicologia</option>
+                    </select>
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteRazonCita"> Razon cita </label>
+                    <select class="form-select" id="pacienteRazonCita" aria-label="Default select example" v-model="form.razonCita">
+                        <option selected>Cual es su razón</option>
+                        <option value="1">Consulta</option>
+                        <option value="2">Control</option>
+                        <option value="3">Urgencia</option>
+                        <option value="4">Toma de muestras</option>
+                        <option value="5">Ingreso</option>
+                        <option value="6">Visita Domiciliaria</option>
+                        <option value="4">Vacunatorio</option>
+                        <option value="7">Imaginologicos</option>
+                        <option value="8">Ginegologicos</option>
+                        <option value="9">Cardiologicos</option>
+                        <option value="10">Otro</option>
+                    </select>
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteFechaCita"> Fecha de cita </label>
+                    <input class="form-control" type="text" id="pacienteFechaCita" v-model="form.fechaCita">
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteHoraInicio"> Hora inicio </label>
+                    <input class="form-control" type="text" id="pacienteHoraInicio" v-model="form.horaInicio">
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteHoraTermino"> Hora termino </label>
+                    <input class="form-control" type="text" id="pacienteHoraTermino" v-model="form.horaTermino">
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label class="form-label" for="pacienteSector"> Sector </label>
+                    <select class="form-select" id="pacienteSector" aria-label="asignado a sector" v-model="form.sector">
+                        <option selected>Cual es su sector</option>
+                        <option value="1">Amarillo</option>
+                        <option value="2">Gris</option>
+                        <option value="3">Azul</option>
+                        <option value="4">Rojo</option>
+                        <option value="5">Verde</option>
+                        <option value="6">Patio central</option>
+                        <option value="4">Transversal</option>
+                        <option value="7">Particular</option>
+                        <option value="8">Sin informado</option>
+                        <option value="10">Otro</option>
+                    </select>
+
+                </div>
+
+                <div class="form-group mb-12">
+
+                    <label for="pacienteObservacion" class="form-label">Observación</label>
+                    <textarea class="form-control" id="pacienteObservacion" rows="3" v-model="form.observacion"></textarea>
+
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteEstablecimiento"> Establecimiento </label>
+                    <input class="form-control" type="text" id="pacienteEstablecimiento" v-model="form.establecimiento">
+
+                    <select class="form-select" id="pacienteEstablecimiento" aria-label="Asignado a una establecimiento" v-model="form.sector">
+                        <option selected>Cual es su establecimiento</option>
+                        <option value="1">CESFAM Santa Laura</option>
+                        <option value="2">SAPU Santa Laura</option>
+                        <option value="3">x</option>
+                        <option value="4">x</option>
+                        <option value="5">x</option>
+                        <option value="6">x</option>
+                        <option value="4">x</option>
+                        <option value="7">x</option>
+                        <option value="8">x</option>
+                        <option value="10">x</option>
+                    </select>
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteCitaCreadaPor"> Cita creada por </label>
+                    <input class="form-control" type="text" id="pacienteCitaCreadaPor" placeholder="Ej: Nac Abarca" aria-label="Ej: 19-01-2026" readonly v-model="form.citaCreadaPor">
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteTipoAtencion"> Tipo de atención </label>
+                    <input class="form-control" type="text" id="pacienteTipoAtencion" v-model="form.tipoAtencion">
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteEspecialidad"> Especialidad </label>
+                    <input class="form-control" type="text" id="pacienteEspecialidad" v-model="form.especialidad">
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteDato1"> dato </label>
+                    <input class="form-control" type="text" id="pacienteDato1" v-model="form.dato1">
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteDato2"> dato </label>
+                    <input class="form-control" type="text" id="pacienteDato2" v-model="form.dato2">
+                </div>
+
+                <div class="form-group mb-12">
+                    <label class="form-label" for="pacienteDato3"> dato </label>
+                    <input class="form-control" type="text" id="pacienteDato3" v-model="form.dato3">
+                </div>
+            </div>
+        
+            <div class="modal-footer">
+                <!-- Botón para cancelar creación de cita -->
+                <button class="btn btn-secondary" type="reset" data-bs-dismiss="modal">Cancelar</button>
+                <!-- Botón para guardar cita -->
+                <button class="btn btn-primary" type="button">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
